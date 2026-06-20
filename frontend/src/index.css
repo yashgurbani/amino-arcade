@@ -1,0 +1,23 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; height: 100%; background: #08060f; }
+
+#root {
+  min-height: 100vh;
+}
+
+@keyframes aa-pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(255, 255, 255, .35); } 50% { box-shadow: 0 0 0 7px rgba(255, 255, 255, 0); } }
+@keyframes aa-marq { 0%, 100% { filter: brightness(1); } 50% { filter: brightness(1.18); } }
+@keyframes aa-flick { 0%, 97%, 100% { opacity: 1; } 98% { opacity: .7; } }
+@keyframes aa-job-stripe { 0% { transform: translateX(-45%); } 100% { transform: translateX(145%); } }
+
+::-webkit-scrollbar { width: 9px; height: 9px; }
+::-webkit-scrollbar-thumb { background: #4a3d72; border-radius: 6px; }
+::-webkit-scrollbar-track { background: #15102a; }
+
+/* Mol* injects its own stylesheet; keep its canvas filling the playfield host. */
+.msp-plugin { position: absolute; inset: 0; }
+.msp-plugin .msp-layout-standard { border: none; }

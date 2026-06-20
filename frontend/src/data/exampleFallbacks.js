@@ -1,0 +1,22 @@
+export const fallbackExamples = [
+  {
+    id: "offline-demo",
+    title: "Offline simulator demo",
+    category: "frontend-fallback",
+    engine: "frontend-fallback",
+    sequence: "MGEELFTGVVPILVELDGDVNGHKFSVSGEGEGDATYGKLTLKFICTTGKLPVPWPTLVT",
+    length: 60,
+    msa_depth: 120,
+    difficulty: "medium",
+    concept: "Fallback data confirms the UI can be inspected even before the backend starts.",
+    interpretation: "Start the FastAPI backend to load the full curated example pack and generated PDB coordinates.",
+    visual_approach: "Use this as a UI smoke-test only.",
+    plddt: Array.from({ length: 60 }, (_, index) => Math.round(55 + 35 * Math.sin(index / 8) ** 2)),
+    pdb: "",
+    pae: null,
+    trajectory: [],
+    confidence: { mean: 74.5, min: 55, max: 90 },
+    runtime: { cached: true },
+    warnings: ["Backend not loaded; showing frontend fallback metadata."],
+  },
+];

@@ -1,0 +1,7 @@
+{
+  "frames": [
+    {"frame": 1, "coordinates": [{"res": 1, "name": "CA", "x": 0.0, "y": 0.0, "z": 0.0}, {"res": 2, "name": "CA", "x": 3.8, "y": 0.0, "z": 0.0}]},
+    {"frame": 2, "coordinates": [{"res": 1, "name": "CA", "x": 0.0, "y": 0.0, "z": 0.0}, {"res": 2, "name": "CA", "x": 3.7, "y": 0.5, "z": 0.1}]},
+    {"frame": 3, "coordinates": [{"res": 1, "name": "CA", "x": 0.0, "y": 0.0, "z": 0.0}, {"res": 2, "name": "CA", "x": 3.6, "y": 0.9, "z": 0.3}]}
+  ]
+}
