@@ -483,7 +483,7 @@ def _predict_localcolabfold(
         num_recycle=int(os.environ.get("LOCALCOLABFOLD_NUM_RECYCLE", "4")),
         templates=os.environ.get("LOCALCOLABFOLD_TEMPLATES", "0") != "0",
     )
-    guard = preflight(config)
+    guard = preflight(config, budget_mib=int(os.environ.get("AF_COMPANION_VRAM_BUDGET_MIB", "7000")))
     if not guard["ok"]:
         raise RuntimeError(str(guard["message"]))
 

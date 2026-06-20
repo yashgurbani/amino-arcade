@@ -95,6 +95,15 @@ def _ensure_environment(args: argparse.Namespace) -> None:
     os.environ["AF_COMPANION_REAL_TIMEOUT_SECONDS"] = str(args.timeout_seconds)
     os.environ["AF_COMPANION_MAX_SEQUENCE"] = str(args.max_sequence)
     os.environ["AF_COMPANION_VRAM_BUDGET_MIB"] = str(args.vram_budget_mib)
+    try:
+        import backend.adapters as adapters
+        import backend.guardrails as guardrails
+
+        adapters.REAL_TIMEOUT_SECONDS = int(args.timeout_seconds)
+        guardrails.DEFAULT_MAX_SEQUENCE = int(args.max_sequence)
+        guardrails.DEFAULT_BUDGET_MIB = int(args.vram_budget_mib)
+    except Exception:
+        pass
     for env_name, value in {
         "LOCALCOLABFOLD_MAX_MSA": args.max_msa,
         "LOCALCOLABFOLD_MAX_SEQ": args.max_seq,
@@ -181,14 +190,24 @@ def main() -> int:
 
     if args.demo_public:
         DEMO_DIR.mkdir(parents=True, exist_ok=True)
+        existing: dict[str, dict[str, Any]] = {}
+        manifest_path = DEMO_DIR / "manifest.json"
+        if manifest_path.exists():
+            try:
+                previous = json.loads(manifest_path.read_text(encoding="utf-8"))
+                existing = {str(item.get("target")): item for item in previous.get("results", []) if item.get("target") is not None}
+            except (OSError, json.JSONDecodeError):
+                existing = {}
+        for row in rows:
+            existing[str(row["target"])] = row
         manifest = {
             "version": 1,
             "generated_by": "scripts/cache_arcade_examples.py",
             "engine": "localcolabfold",
-            "results": rows,
+            "results": [existing[key] for key in sorted(existing, key=lambda value: int(value))],
         }
-        (DEMO_DIR / "manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
-        print(f"\nmanifest: {DEMO_DIR / 'manifest.json'}")
+        manifest_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+        print(f"\nmanifest: {manifest_path}")
     return 1 if failures else 0
 
 

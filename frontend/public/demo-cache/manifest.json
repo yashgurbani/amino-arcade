@@ -12,8 +12,8 @@
       "expectation": "success",
       "cache_key": "c33fb53f38fbdec2",
       "passed_gate": false,
-      "best_mean_plddt": 50.16,
-      "bytes": 1672239
+      "best_mean_plddt": 50.6,
+      "bytes": 1674736
     },
     {
       "target": "2",
@@ -24,8 +24,8 @@
       "expectation": "lesson",
       "cache_key": "f97004a4497f1f3b",
       "passed_gate": false,
-      "best_mean_plddt": 26.44,
-      "bytes": 4214342
+      "best_mean_plddt": 26.19,
+      "bytes": 4305538
     },
     {
       "target": "3",
@@ -36,8 +36,8 @@
       "expectation": "success",
       "cache_key": "8e73d70c9a8360a0",
       "passed_gate": true,
-      "best_mean_plddt": 96.65,
-      "bytes": 2448383
+      "best_mean_plddt": 95.77,
+      "bytes": 2449941
     },
     {
       "target": "4",
@@ -46,10 +46,10 @@
       "sequence_sha256": "a2cb3d8ffc18d3ab9cb63f1b367b1e8594d46cf802a2f9253e9399494d8309d5",
       "msa_mode": "single_sequence",
       "expectation": "lesson",
-      "cache_key": "69de5a3f24f3780a",
+      "cache_key": "15812269f3c7537d",
       "passed_gate": false,
-      "best_mean_plddt": 25.57,
-      "bytes": 9341354
+      "best_mean_plddt": 25.28,
+      "bytes": 20616966
     },
     {
       "target": "5",
@@ -60,8 +60,8 @@
       "expectation": "success",
       "cache_key": "e60379f9017f764e",
       "passed_gate": true,
-      "best_mean_plddt": 95.19,
-      "bytes": 2651371
+      "best_mean_plddt": 95.18,
+      "bytes": 2652061
     },
     {
       "target": "6",
@@ -72,8 +72,8 @@
       "expectation": "success",
       "cache_key": "6f1325464c5f0eb5",
       "passed_gate": true,
-      "best_mean_plddt": 96.67,
-      "bytes": 2147082
+      "best_mean_plddt": 96.66,
+      "bytes": 2148021
     }
   ]
 }
