@@ -106,11 +106,11 @@ test("arcade shell, lens interaction, and real recycle frames", async ({ page })
   await page.goto("/");
 
   await expect(page.locator(".arcade-shell")).toBeVisible();
-  await expect(page.getByText("Insulin", { exact: true })).toBeVisible();
-  await expect(page.getByText("TARGET").locator("..")).toContainText("110 aa");
+  await expect(page.getByText("Myoglobin", { exact: true })).toBeVisible();
+  await expect(page.getByText("TARGET").locator("..")).toContainText("153 aa");
   await expect(page.getByText("REAL PDB FROM START")).toBeVisible();
-  await expect.poll(() => rcsbRequests.some((url) => url.endsWith("/4INS"))).toBe(true);
-  await page.getByRole("button", { name: "2", exact: true }).click();
+  await expect.poll(() => rcsbRequests.some((url) => url.endsWith("/1MBN"))).toBe(true);
+  await page.getByRole("button", { name: "6", exact: true }).click();
   await expect(page.getByText("GFP", { exact: true })).toBeVisible();
   await expect(page.getByText("TARGET").locator("..")).toContainText("236 aa");
   await expect.poll(() => rcsbRequests.some((url) => url.endsWith("/1EMA"))).toBe(true);
@@ -119,9 +119,10 @@ test("arcade shell, lens interaction, and real recycle frames", async ({ page })
   await page.locator('button[title="Open Triangle Updates lens overlay"]').click();
   await expect(page.getByText("FULL SCENE")).toBeVisible();
   await page.getByRole("button", { name: "✕" }).click();
-  await page.getByRole("button", { name: "1", exact: true }).click();
-  await expect(page.getByText("Insulin", { exact: true })).toBeVisible();
-  await expect(page.getByText("TARGET").locator("..")).toContainText("110 aa");
+  await page.getByRole("button", { name: "3", exact: true }).click();
+  await expect(page.getByText("Phosphoglycerate kinase", { exact: true })).toBeVisible();
+  await expect(page.getByText("TARGET").locator("..")).toContainText("416 aa");
+  await expect.poll(() => rcsbRequests.some((url) => url.endsWith("/3PGK"))).toBe(true);
 
   await expect(page.getByTestId("mol-playfield")).toHaveAttribute("data-color-mode", "ss");
   await expect(page.getByText("Loading Mol*…")).toHaveCount(0, { timeout: 20000 });
@@ -131,7 +132,7 @@ test("arcade shell, lens interaction, and real recycle frames", async ({ page })
   expect(jobPosts[0].num_recycle).toBe(8);
   expect(jobPosts[0].num_models).toBe(1);
   expect(jobPosts[0].msa_mode).toBe("mmseqs2_uniref_env");
-  expect(jobPosts[0].sequence.length).toBeGreaterThan(100);
+  expect(jobPosts[0].sequence.length).toBe(416);
   await expect(page.getByTestId("job-popup")).toBeVisible();
   await expect(page.getByTestId("job-popup")).toContainText("recycles requested: 8");
   await expect(page.getByTestId("job-popup")).toContainText("models requested: 1");
@@ -146,6 +147,11 @@ test("arcade shell, lens interaction, and real recycle frames", async ({ page })
   await expect(page.getByRole("button", { name: "Recycle 0" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Recycle 1" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Recycle 2" })).toBeVisible();
+  await page.getByRole("button", { name: "SHOW SS" }).click();
+  await page.getByRole("button", { name: "Recycle 0" }).click();
+  await expect(page.getByTestId("mol-residue-color-legend")).toContainText("Still to settle this recycle");
+  await page.getByRole("button", { name: "Recycle 2" }).click();
+  await expect(page.getByTestId("mol-residue-color-legend")).toContainText("0 Å (settled)");
   await page.getByRole("tab", { name: "PAE" }).click();
   await expect(page.getByLabel("Real predicted aligned error matrix")).toBeVisible();
 

@@ -64,6 +64,16 @@ test("confidence lens colors by pLDDT", () => {
   assert.deepEqual(colors.values, [10, 50, 90]);
 });
 
+test("explicit confidence mode overrides active structural lens gradients", () => {
+  const colors = lensResidueColors(entry, {
+    ca: [[0, 0, 0]],
+    referenceCa: [[1, 0, 0]],
+    plddt: [91],
+    activeLenses: ["recycling", "confidence"],
+  });
+  assert.deepEqual(colors, { mode: "plddt", units: "pLDDT", values: [91] });
+});
+
 test("recycling lens exposes real aligned per-residue distance still to settle", () => {
   const ca = [[0, 0, 0], [1, 0, 0], [2, 0, 0]];
   const referenceCa = [[0, 0, 0], [1, 1, 0], [2, 0, 0]];

@@ -93,6 +93,10 @@ export function lensContactLines(ca, referenceCa) {
 // are real (Angstrom or pLDDT units), never rescaled to fake larger motion.
 export function lensResidueColors(entry, { ca, referenceCa, plddt, activeLenses } = {}) {
   const active = new Set(activeLenses || []);
+  // Explicit confidence mode (the SHOW pLDDT control) overrides lens gradients.
+  if (active.has("confidence") && Array.isArray(plddt) && plddt.length) {
+    return { mode: "plddt", units: "pLDDT", values: plddt };
+  }
   if (active.has("fape")) {
     const disp = perResidueDisplacement(ca, referenceCa);
     if (disp) {
@@ -117,9 +121,6 @@ export function lensResidueColors(entry, { ca, referenceCa, plddt, activeLenses 
         maxValue: Number.isFinite(entry?.max_displacement_overall_a) ? entry.max_displacement_overall_a : undefined,
       };
     }
-  }
-  if (active.has("confidence") && Array.isArray(plddt) && plddt.length) {
-    return { mode: "plddt", units: "pLDDT", values: plddt };
   }
   return null;
 }
