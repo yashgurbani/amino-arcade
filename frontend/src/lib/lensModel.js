@@ -3,8 +3,7 @@
 // Given a single recycle frame's real analysis (+ coordinates, pLDDT, PAE) it
 // produces (a) honest per-lens metric strings and (b) overlay descriptors the
 // Mol* viewer renders. This REPLACES the synthetic placeholders that used to
-// live in App.jsx (lensMetric with "residual < 1e-12", recDelta() returning a
-// hardcoded [1, 0.4, 0.16, ...] series, FAPE pinned at 0.18/3.6).
+// live in App.jsx.
 //
 // Everything here is derived from coordinates LocalColabFold actually produced.
 // See HANDOFF_PEDAGOGY_AND_LENSES.md, Part 2.
@@ -90,8 +89,8 @@ export function lensContactLines(ca, referenceCa) {
 }
 
 // Per-residue color channel for the active lens. FAPE -> displacement-to-final;
-// Confidence -> pLDDT. Values are real (Angstrom or pLDDT units), never rescaled
-// to fake larger motion. `mode` tells the viewer how to interpret them.
+// Recycling -> distance still to settle (own ramp); Confidence -> pLDDT. Values
+// are real (Angstrom or pLDDT units), never rescaled to fake larger motion.
 export function lensResidueColors(entry, { ca, referenceCa, plddt, activeLenses } = {}) {
   const active = new Set(activeLenses || []);
   if (active.has("fape")) {
@@ -99,6 +98,20 @@ export function lensResidueColors(entry, { ca, referenceCa, plddt, activeLenses 
     if (disp) {
       return {
         mode: "displacement",
+        units: "A",
+        values: disp.map((v) => Number(v.toFixed(3))),
+        maxValue: Number.isFinite(entry?.max_displacement_overall_a) ? entry.max_displacement_overall_a : undefined,
+      };
+    }
+  }
+  // Recycling: colour each residue by how far it still is from its final pose.
+  // Step the recycles and the structure visibly COOLS to blue as it converges -
+  // the settling, not folding kinetics. Same measurement as FAPE, own colour ramp.
+  if (active.has("recycling")) {
+    const disp = perResidueDisplacement(ca, referenceCa);
+    if (disp) {
+      return {
+        mode: "recycle",
         units: "A",
         values: disp.map((v) => Number(v.toFixed(3))),
         maxValue: Number.isFinite(entry?.max_displacement_overall_a) ? entry.max_displacement_overall_a : undefined,

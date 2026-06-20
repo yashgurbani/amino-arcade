@@ -63,3 +63,14 @@ test("confidence lens colors by pLDDT", () => {
   assert.equal(colors.mode, "plddt");
   assert.deepEqual(colors.values, [10, 50, 90]);
 });
+
+test("recycling lens exposes real aligned per-residue distance still to settle", () => {
+  const ca = [[0, 0, 0], [1, 0, 0], [2, 0, 0]];
+  const referenceCa = [[0, 0, 0], [1, 1, 0], [2, 0, 0]];
+  const moving = lensResidueColors({ max_displacement_overall_a: 2 }, { ca, referenceCa, activeLenses: ["recycling"] });
+  const settled = lensResidueColors({ max_displacement_overall_a: 2 }, { ca: referenceCa, referenceCa, activeLenses: ["recycling"] });
+  assert.equal(moving.mode, "recycle");
+  assert.equal(moving.maxValue, 2);
+  assert.ok(Math.max(...moving.values) > 0);
+  assert.deepEqual(settled.values, [0, 0, 0]);
+});

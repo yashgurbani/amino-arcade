@@ -22,7 +22,7 @@ class MolPlayfield extends Component {
       this.load({ resetCamera: !frameToFrame });
     } else if (prev.colorMode !== this.props.colorMode) this.applyVisualTheme();
     if ((prev.activeLenses || []).join(",") !== (this.props.activeLenses || []).join(",") || (prev.selectedResidues || []).join(",") !== (this.props.selectedResidues || []).join(",") || prev.lens !== this.props.lens || prev.lensModel !== this.props.lensModel) this.applyLensAnnotations();
-    if (prev.lensModel !== this.props.lensModel || (prev.activeLenses || []).join(",") !== (this.props.activeLenses || []).join(",") || prev.lens !== this.props.lens) this.applyResidueOverlay();
+    if (prev.lensModel !== this.props.lensModel || (prev.activeLenses || []).join(",") !== (this.props.activeLenses || []).join(",") || prev.lens !== this.props.lens) { this.applyColorTheme(); this.applyResidueOverlay(); }
     if (prev.lensModel !== this.props.lensModel || (prev.activeLenses || []).join(",") !== (this.props.activeLenses || []).join(",")) this.applyContactLines();
   }
   componentWillUnmount() { this._mounted = false; this._loadSeq += 1; try { if (this.plugin && this.plugin.dispose) this.plugin.dispose(); } catch (e) { void e; } this.plugin = null; this._contactLineRefs = []; }
@@ -66,18 +66,28 @@ class MolPlayfield extends Component {
     if (!this.plugin) return;
     const structures = this.plugin.managers?.structure?.hierarchy?.current?.structures || [];
     if (!structures.length) return;
-    const color = this.props.colorMode === "ss" ? "secondary-structure" : "uncertainty";
+    const active = new Set(this.props.activeLenses || []);
+    const anyLens = ["coevolution", "triangle", "ipa", "fape", "recycling"].some((l) => active.has(l));
+    const usePlddt = this.props.colorMode === "plddt" || active.has("confidence");
+    const plddtParams = { domain: [0, 100], list: { kind: "interpolate", colors: "red-white-blue" } };
     try {
+      let color = "secondary-structure";
+      let colorParams;
+      if (usePlddt) {
+        color = "uncertainty"; colorParams = plddtParams;
+      } else if (anyLens) {
+        // Neutral slate base so bright lens overlays / lines read with high contrast
+        // (pink secondary-structure colouring used to swallow the overlays).
+        const { Color } = await import("molstar/lib/mol-util/color");
+        color = "uniform"; colorParams = { value: Color(0x39415a) };
+      } else if (this.props.colorMode !== "ss") {
+        color = "uncertainty"; colorParams = plddtParams;
+      }
       for (const structure of structures) {
-        await this.plugin.managers.structure.component.updateRepresentationsTheme(structure.components, {
-          color,
-          colorParams: color === "uncertainty"
-            ? { domain: [0, 100], list: { kind: "interpolate", colors: "red-white-blue" } }
-            : undefined,
-        });
+        await this.plugin.managers.structure.component.updateRepresentationsTheme(structure.components, { color, colorParams });
       }
     } catch (err) {
-      console.info("Mol* color theme unavailable", color, err);
+      console.info("Mol* color theme unavailable", err);
     }
   }
 
@@ -86,20 +96,30 @@ class MolPlayfield extends Component {
     await this.applyResidueOverlay();
   }
 
-  // Representative residues per lens. Real computed residues win when a fold is
-  // loaded; otherwise these clearly-illustrative presets give every lens a
-  // visible mark so toggling always does something on the structure.
-  presetResiduesFor(lensId) {
+  // IPA has no per-residue scalar to colour. Mark ONE contiguous local-frame
+  // neighbourhood as a single patch (a coherent region, not scattered dots). Its
+  // real, visceral demo - rotate the protein, the local readout is unchanged -
+  // lives in the interactive scene (open with the lens ⤢ button).
+  localFrameSegment() {
     const n = Math.max(1, (this.props.frame?.plddt?.length || this.props.fallbackSequence?.length || 30));
-    const clamp = (v) => Math.max(1, Math.min(n, Math.round(v)));
-    const presets = {
-      coevolution: [2, clamp(n / 3), clamp((2 * n) / 3), n - 1],
-      triangle: [3, clamp(n / 2), n - 2],
-      ipa: [clamp(n * 0.25), clamp(n * 0.25) + 1, clamp(n * 0.75), clamp(n * 0.75) + 1],
-      fape: [clamp(n / 2) - 2, clamp(n / 2) - 1, clamp(n / 2), clamp(n / 2) + 1, clamp(n / 2) + 2],
-      recycling: [1, clamp(n / 2), n],
-    };
-    return [...new Set((presets[lensId] || []).map(clamp))];
+    const start = Math.max(1, Math.round(n * 0.45));
+    return Array.from({ length: Math.min(6, n) }, (_, i) => start + i).filter((r) => r >= 1 && r <= n);
+  }
+
+  // Three residues forming a triangle for the Triangle lens. Prefer a real
+  // contacting triple from the computed contact map; else three spread points.
+  triangleResidues() {
+    const lines = this.props.lensModel?.contactLines;
+    const src = lines ? (lines.gained?.length ? lines.gained : lines.stable || []) : [];
+    if (src.length) {
+      const [i, j] = src[0];
+      const third = src.find((pr) => pr[0] !== i && pr[1] !== j && pr[0] !== j && pr[1] !== i);
+      const k = third ? third[0] : Math.round((i + j) / 2);
+      const tri = [...new Set([i + 1, j + 1, k + 1])];
+      if (tri.length === 3) return tri;
+    }
+    const n = Math.max(3, (this.props.frame?.plddt?.length || this.props.fallbackSequence?.length || 30));
+    return [Math.round(n * 0.2), Math.round(n * 0.55), Math.round(n * 0.82)].map((r) => Math.max(1, Math.min(n, r)));
   }
 
   async applyResidueOverlay() {
@@ -129,18 +149,11 @@ class MolPlayfield extends Component {
       // (1) Real per-residue gradient (FAPE displacement / confidence pLDDT).
       const groups = groupResidueColors(this.props.lensModel?.residueColors);
       for (const group of groups) await paint(group.residues, group.color);
-      // (2) Solid lens-coloured patches so EVERY toggled lens visibly marks the
-      // structure. Coevolution shows as contact lines; FAPE as the gradient above.
-      // Triangle / IPA / recycling get their representative residues painted in the
-      // lens colour (computed when a fold is loaded, else illustrative presets).
+      // (2) IPA is the only active lens with no per-residue gradient or lines: mark
+      // a single local-frame neighbourhood so the toggle does something coherent.
       const active = (this.props.activeLenses && this.props.activeLenses.length) ? this.props.activeLenses : (this.props.lens ? [this.props.lens] : []);
-      const hasGradient = groups.length > 0;
-      const realResidues = Array.isArray(this.props.lensModel?.highlightResidues) ? this.props.lensModel.highlightResidues : [];
-      for (const lensId of active) {
-        if (lensId === "coevolution") continue;
-        if (lensId === "fape" && hasGradient) continue;
-        const residues = (lensId === "fape" && realResidues.length) ? realResidues : this.presetResiduesFor(lensId);
-        await paint(residues, LENS_COLORS[lensId] || "#ffffff");
+      if (active.includes("ipa") && !groups.length) {
+        await paint(this.localFrameSegment(), LENS_COLORS.ipa);
       }
     } catch (err) {
       console.info("Mol* residue color overlay unavailable", err);
@@ -179,30 +192,40 @@ class MolPlayfield extends Component {
     await this.clearContactLines();
     if (!this.plugin) return;
     const active = new Set(this.props.activeLenses || []);
-    const lines = this.props.lensModel?.contactLines;
-    if (!active.has("coevolution") || !lines) return;
     const structure = this.plugin.managers?.structure?.hierarchy?.current?.structures?.[0]?.cell?.obj?.data;
     if (!structure || !this.plugin.managers?.structure?.measurement?.addDistance) return;
-    const cells = visibleContactDeltaCells(lines, { stableLimit: 14 })
-      .filter((cell) => cell.kind !== "stable" || (lines.gained?.length || lines.lost?.length || 0) < 10)
-      .slice(0, 40);
-    if (!cells.length) return;
+    const drawLine = async (a, b, hex, size, dash) => {
+      const lociA = await this.residueLoci(structure, a);
+      const lociB = await this.residueLoci(structure, b);
+      const result = await this.plugin.managers.structure.measurement.addDistance(lociA, lociB, {
+        customText: "",
+        lineParams: { linesColor: parseInt(hex.slice(1), 16), linesSize: size, dashLength: dash },
+        visualParams: { visuals: ["lines"] },
+      });
+      for (const selector of [result?.representation, result?.selection]) {
+        if (selector?.ref) this._contactLineRefs.push(selector.ref);
+      }
+    };
     try {
-      for (const { kind, pair } of cells) {
-        const styleDef = CONTACT_DELTA_STYLES[kind];
-        const lociA = await this.residueLoci(structure, pair[0] + 1);
-        const lociB = await this.residueLoci(structure, pair[1] + 1);
-        const result = await this.plugin.managers.structure.measurement.addDistance(lociA, lociB, {
-          customText: "",
-          lineParams: {
-            linesColor: parseInt(styleDef.color.slice(1), 16),
-            linesSize: kind === "stable" ? 0.035 : 0.07,
-            dashLength: kind === "lost" ? 0.12 : 0.2,
-          },
-          visualParams: { visuals: ["lines"] },
-        });
-        for (const selector of [result?.representation, result?.selection]) {
-          if (selector?.ref) this._contactLineRefs.push(selector.ref);
+      // Coevolution: gained / lost / stable contact lines from real coevolving pairs.
+      const lines = this.props.lensModel?.contactLines;
+      if (active.has("coevolution") && lines) {
+        const cells = visibleContactDeltaCells(lines, { stableLimit: 14 })
+          .filter((cell) => cell.kind !== "stable" || (lines.gained?.length || lines.lost?.length || 0) < 10)
+          .slice(0, 40);
+        for (const { kind, pair } of cells) {
+          const styleDef = CONTACT_DELTA_STYLES[kind];
+          await drawLine(pair[0] + 1, pair[1] + 1, styleDef.color, kind === "stable" ? 0.035 : 0.07, kind === "lost" ? 0.12 : 0.2);
+        }
+      }
+      // Triangle: one closed triple of distance lines. The loop only closes when
+      // all three pairwise distances are mutually consistent - the lens's whole point.
+      if (active.has("triangle")) {
+        const tri = this.triangleResidues();
+        if (tri.length === 3) {
+          await drawLine(tri[0], tri[1], "#3dffa8", 0.09, 0.2);
+          await drawLine(tri[1], tri[2], "#3dffa8", 0.09, 0.2);
+          await drawLine(tri[0], tri[2], "#3dffa8", 0.09, 0.2);
         }
       }
     } catch (err) {

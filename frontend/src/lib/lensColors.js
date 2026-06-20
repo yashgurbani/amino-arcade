@@ -1,5 +1,8 @@
 const DISPLACEMENT_COOL = [61, 255, 168];
 const DISPLACEMENT_HOT = [255, 77, 109];
+// Recycling ramp: settled (near final) = calm blue, still-moving = hot amber.
+const RECYCLE_COOL = [31, 111, 235];
+const RECYCLE_HOT = [255, 179, 71];
 
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
@@ -25,6 +28,11 @@ export function colorForDisplacement(value, maxValue) {
   return toHex(mix(DISPLACEMENT_COOL, DISPLACEMENT_HOT, clamp(value / denominator, 0, 1)));
 }
 
+export function colorForRecycle(value, maxValue) {
+  const denominator = maxValue > 0 ? maxValue : 1;
+  return toHex(mix(RECYCLE_COOL, RECYCLE_HOT, clamp(value / denominator, 0, 1)));
+}
+
 // Quantize continuous displacement colors so Mol* receives a small number of
 // overpaint layers instead of one state transform per residue.
 export function groupResidueColors(channel, { bins = 8 } = {}) {
@@ -43,6 +51,10 @@ export function groupResidueColors(channel, { bins = 8 } = {}) {
       const normalized = maxValue > 0 ? clamp(value / maxValue, 0, 1) : 0;
       const quantized = Math.round(normalized * (bins - 1)) / Math.max(1, bins - 1);
       color = colorForDisplacement(quantized * maxValue, maxValue);
+    } else if (channel.mode === "recycle") {
+      const normalized = maxValue > 0 ? clamp(value / maxValue, 0, 1) : 0;
+      const quantized = Math.round(normalized * (bins - 1)) / Math.max(1, bins - 1);
+      color = colorForRecycle(quantized * maxValue, maxValue);
     } else {
       return;
     }
@@ -69,6 +81,18 @@ export function residueColorLegend(channel) {
       max: `${maxValue.toFixed(2)} Å`,
       lowColor: toHex(DISPLACEMENT_COOL),
       highColor: toHex(DISPLACEMENT_HOT),
+    };
+  }
+  if (channel.mode === "recycle") {
+    const finite = channel.values.filter((value) => Number.isFinite(value));
+    if (!finite.length) return null;
+    const maxValue = Math.max(...finite);
+    return {
+      title: "Still to settle this recycle",
+      min: "0 Å (settled)",
+      max: `${maxValue.toFixed(2)} Å`,
+      lowColor: toHex(RECYCLE_COOL),
+      highColor: toHex(RECYCLE_HOT),
     };
   }
   return null;

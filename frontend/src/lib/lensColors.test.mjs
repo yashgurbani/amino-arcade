@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { colorForPlddt, groupResidueColors, residueColorLegend } from "./lensColors.js";
+import { colorForPlddt, colorForRecycle, groupResidueColors, residueColorLegend } from "./lensColors.js";
 
 test("pLDDT uses the documented AlphaFold-style confidence bands", () => {
   assert.equal(colorForPlddt(95), "#1f6feb");
@@ -29,6 +29,18 @@ test("displacement colors can use a trajectory-wide maximum for cross-frame comp
   const frameA = groupResidueColors({ mode: "displacement", units: "A", values: [2], maxValue: 4 }, { bins: 5 });
   const frameB = groupResidueColors({ mode: "displacement", units: "A", values: [2, 4], maxValue: 4 }, { bins: 5 });
   assert.equal(frameA[0].color, frameB.find((group) => group.residues.includes(1)).color);
+});
+
+test("recycling ramp cools from moving amber to settled blue", () => {
+  assert.equal(colorForRecycle(0, 4), "#1f6feb");
+  assert.equal(colorForRecycle(4, 4), "#ffb347");
+  assert.deepEqual(residueColorLegend({ mode: "recycle", units: "A", values: [0, 2, 4] }), {
+    title: "Still to settle this recycle",
+    min: "0 Å (settled)",
+    max: "4.00 Å",
+    lowColor: "#1f6feb",
+    highColor: "#ffb347",
+  });
 });
 
 test("unsupported or empty channels do not create misleading overlays", () => {
