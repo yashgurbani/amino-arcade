@@ -1,4 +1,16 @@
 const API_BASE = import.meta.env.VITE_API_BASE || "http://127.0.0.1:8011";
+const DEMO_CACHE_ENABLED = import.meta.env.VITE_DEMO_CACHE === "1";
+const DEMO_BASE = `${import.meta.env.BASE_URL || "/"}demo-cache`;
+
+export function isDemoCacheEnabled() {
+  return DEMO_CACHE_ENABLED;
+}
+
+async function sha256Hex(text) {
+  const bytes = new TextEncoder().encode(text);
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return [...new Uint8Array(digest)].map((value) => value.toString(16).padStart(2, "0")).join("");
+}
 
 export async function fetchJson(path, options = {}) {
   const response = await fetch(`${API_BASE}${path}`, {
@@ -14,6 +26,22 @@ export async function fetchJson(path, options = {}) {
 
 export function fetchCapabilities() {
   return fetchJson("/api/backend/capabilities");
+}
+
+export async function fetchDemoManifest() {
+  const response = await fetch(`${DEMO_BASE}/manifest.json`, { cache: "no-cache" });
+  if (!response.ok) throw new Error(`Demo cache manifest unavailable (${response.status})`);
+  return response.json();
+}
+
+export async function fetchDemoResultForSequence(sequence) {
+  const manifest = await fetchDemoManifest();
+  const sequenceHash = await sha256Hex(sequence);
+  const item = (manifest.results || []).find((row) => row.sequence_sha256 === sequenceHash);
+  if (!item) throw new Error("No bundled real-fold demo result for this sequence.");
+  const response = await fetch(item.url, { cache: "force-cache" });
+  if (!response.ok) throw new Error(`Demo result unavailable (${response.status})`);
+  return response.json();
 }
 
 export async function fetchPhysicsStatus() {

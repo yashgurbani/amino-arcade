@@ -12,6 +12,8 @@ import {
   fetchPredictionReport,
   fetchPredictionResult,
   fetchPhysicsStatus,
+  fetchDemoResultForSequence,
+  isDemoCacheEnabled,
   runLocalRelaxation,
 } from "./lib/api";
 import { computeLensModel, lensContactLines, lensMetrics as computeLensMetrics } from "./lib/lensModel";
@@ -432,6 +434,18 @@ class App extends Component {
     // gentle progress animation while the (possibly multi-minute) job runs
     this._foldT = setInterval(() => { this.setState((s) => ({ custom: { ...s.custom, t: Math.min(0.95, s.custom.t + 0.01), elapsed: s.custom.elapsed + 0.25 } })); }, 250);
     try {
+      if (isDemoCacheEnabled()) {
+        this.addRunLog(fiy, "DEMO", "loading bundled LocalColabFold result", this.C.cyan);
+        const res = await fetchDemoResultForSequence(cleaned);
+        clearInterval(this._foldT);
+        const demoJob = { id: `demo-${res.meta?.target?.n || "cache"}`, status: "succeeded", engine: res.engine || "localcolabfold", options: res.meta?.options || runOptions, cache_key: res.cache_key };
+        this.setState({ result: res, resultSeq: cleaned, pendingSeq: "", report: null, realIndex: 0, realPlaying: false, selectedModel: 0, loading: false, jobPopupOpen: false, job: demoJob }, () => {
+          if ((res.frames || []).length > 1) this.playReal(true);
+        });
+        this.addRunLog(fiy, "✓", `demo fold loaded · ${res.frames?.length || 0} recycle frames`, this.C.green);
+        if (fiy) this.setState((s) => ({ custom: { ...s.custom, running: false, done: true, t: 1 } }));
+        return;
+      }
       const created = await createPredictionJob(cleaned, engine, runOptions);
       this.setState({ job: created });
       this.addRunLog(fiy, "JOB", `created ${created.id} · ${created.status}`, this.C.cyan);

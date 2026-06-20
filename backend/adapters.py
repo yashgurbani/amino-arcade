@@ -377,6 +377,15 @@ def _localcolabfold_command(executable: str, fasta: Path, out_dir: Path) -> list
     data_dir = os.environ.get("LOCALCOLABFOLD_DATA_DIR")
     if data_dir:
         cmd.extend(["--data", data_dir])
+    max_msa = os.environ.get("LOCALCOLABFOLD_MAX_MSA")
+    if max_msa:
+        cmd.extend(["--max-msa", max_msa])
+    max_seq = os.environ.get("LOCALCOLABFOLD_MAX_SEQ")
+    if max_seq:
+        cmd.extend(["--max-seq", max_seq])
+    max_extra_seq = os.environ.get("LOCALCOLABFOLD_MAX_EXTRA_SEQ")
+    if max_extra_seq:
+        cmd.extend(["--max-extra-seq", max_extra_seq])
     if os.environ.get("LOCALCOLABFOLD_OVERWRITE", "1") != "0":
         cmd.append("--overwrite-existing-results")
     if os.environ.get("LOCALCOLABFOLD_DISABLE_UNIFIED_MEMORY", "0") != "0":
@@ -433,25 +442,30 @@ def _run_cancellable_subprocess(
     cancel_event: threading.Event | None,
     log_callback: Any | None,
 ) -> tuple[int, str, str]:
-    process = subprocess.Popen(
-        cmd,
-        cwd=str(cwd),
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-    )
-    start = time.monotonic()
-    _emit(log_callback, f"Started subprocess pid={process.pid}.")
-    while process.poll() is None:
-        if cancel_event and cancel_event.is_set():
-            _terminate_process(process, log_callback)
-            raise InterruptedError("LocalColabFold run cancelled.")
-        if time.monotonic() - start > timeout_seconds:
-            _terminate_process(process, log_callback)
-            raise TimeoutError(f"LocalColabFold exceeded timeout of {timeout_seconds} seconds.")
-        time.sleep(0.1)
-    stdout, stderr = process.communicate()
-    return process.returncode or 0, stdout or "", stderr or ""
+    stdout_path = cwd / "localcolabfold.stdout.log"
+    stderr_path = cwd / "localcolabfold.stderr.log"
+    with stdout_path.open("w", encoding="utf-8", errors="replace") as stdout_file, stderr_path.open("w", encoding="utf-8", errors="replace") as stderr_file:
+        process = subprocess.Popen(
+            cmd,
+            cwd=str(cwd),
+            stdout=stdout_file,
+            stderr=stderr_file,
+            text=True,
+        )
+        start = time.monotonic()
+        _emit(log_callback, f"Started subprocess pid={process.pid}.")
+        while process.poll() is None:
+            if cancel_event and cancel_event.is_set():
+                _terminate_process(process, log_callback)
+                raise InterruptedError("LocalColabFold run cancelled.")
+            if time.monotonic() - start > timeout_seconds:
+                _terminate_process(process, log_callback)
+                raise TimeoutError(f"LocalColabFold exceeded timeout of {timeout_seconds} seconds.")
+            time.sleep(0.1)
+        process.wait()
+    stdout = stdout_path.read_text(encoding="utf-8", errors="replace") if stdout_path.exists() else ""
+    stderr = stderr_path.read_text(encoding="utf-8", errors="replace") if stderr_path.exists() else ""
+    return process.returncode or 0, stdout, stderr
 
 
 def _predict_localcolabfold(

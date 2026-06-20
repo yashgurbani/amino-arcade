@@ -20,5 +20,6 @@ test("large collagen-like target preserves the raised-limit teaching sequence", 
   const collagen = arcadeTargets().find((target) => target.name === "Collagen-like chain");
   assert.equal(collagen.seq, COL_SEQ);
   assert.equal(collagen.seq.length, 768);
+  assert.equal(collagen.msaMode, "single_sequence");
   assert.equal(collagen.expectation, "lesson");
 });

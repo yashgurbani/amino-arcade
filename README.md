@@ -40,6 +40,14 @@ npm test
 npx eslint src tests
 ```
 
+Zero-install demo mode uses bundled real LocalColabFold fixtures from
+`frontend/public/demo-cache` and does not require the backend:
+
+```powershell
+cd frontend
+$env:VITE_DEMO_CACHE="1"; npm run dev
+```
+
 ## API
 
 - `POST /api/predict`

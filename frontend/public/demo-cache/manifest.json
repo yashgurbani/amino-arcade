@@ -1,0 +1,79 @@
+{
+  "version": 1,
+  "generated_by": "scripts/cache_arcade_examples.py",
+  "engine": "localcolabfold",
+  "results": [
+    {
+      "target": "1",
+      "name": "Insulin",
+      "url": "/demo-cache/1-insulin.json",
+      "sequence_sha256": "99603f8fb1e9872e2d24ee1e9f85108c2bddea6b148a0f1099e16ba2715c8263",
+      "msa_mode": "mmseqs2_uniref_env",
+      "expectation": "success",
+      "cache_key": "c33fb53f38fbdec2",
+      "passed_gate": false,
+      "best_mean_plddt": 50.16,
+      "bytes": 1672239
+    },
+    {
+      "target": "2",
+      "name": "GFP",
+      "url": "/demo-cache/2-gfp.json",
+      "sequence_sha256": "cb510b908de0ac5320f8862097d1df509ba225c88e7be8d14154a17c6328f04a",
+      "msa_mode": "single_sequence",
+      "expectation": "lesson",
+      "cache_key": "f97004a4497f1f3b",
+      "passed_gate": false,
+      "best_mean_plddt": 26.44,
+      "bytes": 4214342
+    },
+    {
+      "target": "3",
+      "name": "Myoglobin",
+      "url": "/demo-cache/3-myoglobin.json",
+      "sequence_sha256": "4e1e5bdd96abfd0c314159fd2797177dfc06ef65103f9f7eda3489f61ca98353",
+      "msa_mode": "mmseqs2_uniref_env",
+      "expectation": "success",
+      "cache_key": "8e73d70c9a8360a0",
+      "passed_gate": true,
+      "best_mean_plddt": 96.65,
+      "bytes": 2448383
+    },
+    {
+      "target": "4",
+      "name": "Collagen-like chain",
+      "url": "/demo-cache/4-collagen-like-chain.json",
+      "sequence_sha256": "a2cb3d8ffc18d3ab9cb63f1b367b1e8594d46cf802a2f9253e9399494d8309d5",
+      "msa_mode": "single_sequence",
+      "expectation": "lesson",
+      "cache_key": "69de5a3f24f3780a",
+      "passed_gate": false,
+      "best_mean_plddt": 25.57,
+      "bytes": 9341354
+    },
+    {
+      "target": "5",
+      "name": "Lysozyme",
+      "url": "/demo-cache/5-lysozyme.json",
+      "sequence_sha256": "f711efa5477291636f1ce3439f3f6333ada3c4962dbedb3edfdbcaf82815e34a",
+      "msa_mode": "mmseqs2_uniref_env",
+      "expectation": "success",
+      "cache_key": "e60379f9017f764e",
+      "passed_gate": true,
+      "best_mean_plddt": 95.19,
+      "bytes": 2651371
+    },
+    {
+      "target": "6",
+      "name": "Hemoglobin",
+      "url": "/demo-cache/6-hemoglobin.json",
+      "sequence_sha256": "625c708d1e51d4df14c88a2fc08ec59355f96b51c0ea7a0a5eb5a910b92a0675",
+      "msa_mode": "mmseqs2_uniref_env",
+      "expectation": "success",
+      "cache_key": "6f1325464c5f0eb5",
+      "passed_gate": true,
+      "best_mean_plddt": 96.67,
+      "bytes": 2147082
+    }
+  ]
+}

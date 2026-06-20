@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import os
 import subprocess
 import sys
 
@@ -20,16 +21,25 @@ def main() -> int:
     args = [to_wsl_path(arg) for arg in sys.argv[1:]]
     shell_args = " ".join(_quote(arg) for arg in args)
     results_dir = _quote(args[-1]) if args else "''"
+    env_exports = ""
+    if os.environ.get("LOCALCOLABFOLD_CPU") == "1":
+        env_exports += "export JAX_PLATFORMS='cpu'; export CUDA_VISIBLE_DEVICES=''; "
+    for name in ("JAX_PLATFORMS", "CUDA_VISIBLE_DEVICES"):
+        if name in os.environ:
+            env_exports += f"export {name}={_quote(os.environ[name])}; "
     command = (
         "set -e; "
         "export XLA_PYTHON_CLIENT_PREALLOCATE=${XLA_PYTHON_CLIENT_PREALLOCATE:-false}; "
         "export XLA_PYTHON_CLIENT_MEM_FRACTION=${XLA_PYTHON_CLIENT_MEM_FRACTION:-0.75}; "
         "export TF_FORCE_UNIFIED_MEMORY=${TF_FORCE_UNIFIED_MEMORY:-0}; "
+        f"{env_exports}"
         f"mkdir -p -- {results_dir}; "
         "source ~/localcolabfold/conda/etc/profile.d/conda.sh; "
         "conda activate ~/localcolabfold/colabfold-conda; "
         f"exec colabfold_batch {shell_args}"
     )
+    if os.environ.get("LOCALCOLABFOLD_WRAPPER_DEBUG") == "1":
+        print(command, file=sys.stderr)
     return subprocess.run(["wsl", "bash", "-lc", command], check=False).returncode
 
 
