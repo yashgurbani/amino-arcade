@@ -56,15 +56,28 @@ export async function runLocalRelaxation(pdb, maxIterations = 200) {
   });
 }
 
+// Fetch the public crystal structure for a target's PDB id. Prefer the backend
+// proxy (adds server-side caching + a stable User-Agent), but fall back to the
+// public RCSB endpoint directly when the backend is unreachable. Without this
+// fallback, a backend-less/demo build fails every reference fetch and the viewer
+// drops to the generic spiral fallback for EVERY target \u2014 making all examples
+// look identical (the pre-refactor code fetched RCSB directly). RCSB serves CORS
+// headers on files.rcsb.org, so the browser can read it without a proxy.
 export async function fetchReferencePdb(pdbId) {
-  const response = await fetch(`${API_BASE}/api/reference/pdb/${encodeURIComponent(pdbId)}`);
-  const text = await response.text();
-  if (!response.ok) {
-    let message = `RCSB proxy failed with ${response.status}`;
-    try { message = JSON.parse(text).message || message; } catch { /* keep fallback */ }
-    throw new Error(message);
+  const id = encodeURIComponent(pdbId);
+  try {
+    const response = await fetch(`${API_BASE}/api/reference/pdb/${id}`);
+    const text = await response.text();
+    if (response.ok && text.includes("ATOM")) return text;
+    throw new Error(`RCSB proxy returned ${response.status}`);
+  } catch (proxyErr) {
+    // Backend down / wrong origin / network error -> go straight to RCSB.
+    const direct = await fetch(`https://files.rcsb.org/download/${String(pdbId).toUpperCase()}.pdb`);
+    if (!direct.ok) throw new Error(`RCSB ${pdbId} unavailable (${direct.status}); proxy: ${proxyErr.message}`, { cause: proxyErr });
+    const text = await direct.text();
+    if (!text.includes("ATOM")) throw new Error(`RCSB ${pdbId} returned no usable PDB`, { cause: proxyErr });
+    return text;
   }
-  return text;
 }
 
 export async function fetchExamples() {

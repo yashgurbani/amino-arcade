@@ -5,32 +5,8 @@
   "results": [
     {
       "target": "1",
-      "name": "Insulin",
-      "url": "/demo-cache/1-insulin.json",
-      "sequence_sha256": "99603f8fb1e9872e2d24ee1e9f85108c2bddea6b148a0f1099e16ba2715c8263",
-      "msa_mode": "mmseqs2_uniref_env",
-      "expectation": "success",
-      "cache_key": "c33fb53f38fbdec2",
-      "passed_gate": false,
-      "best_mean_plddt": 50.6,
-      "bytes": 1674736
-    },
-    {
-      "target": "2",
-      "name": "GFP",
-      "url": "/demo-cache/2-gfp.json",
-      "sequence_sha256": "cb510b908de0ac5320f8862097d1df509ba225c88e7be8d14154a17c6328f04a",
-      "msa_mode": "single_sequence",
-      "expectation": "lesson",
-      "cache_key": "f97004a4497f1f3b",
-      "passed_gate": false,
-      "best_mean_plddt": 26.19,
-      "bytes": 4305538
-    },
-    {
-      "target": "3",
       "name": "Myoglobin",
-      "url": "/demo-cache/3-myoglobin.json",
+      "url": "/demo-cache/1-myoglobin.json",
       "sequence_sha256": "4e1e5bdd96abfd0c314159fd2797177dfc06ef65103f9f7eda3489f61ca98353",
       "msa_mode": "mmseqs2_uniref_env",
       "expectation": "success",
@@ -40,33 +16,9 @@
       "bytes": 2449941
     },
     {
-      "target": "4",
-      "name": "Collagen-like chain",
-      "url": "/demo-cache/4-collagen-like-chain.json",
-      "sequence_sha256": "a2cb3d8ffc18d3ab9cb63f1b367b1e8594d46cf802a2f9253e9399494d8309d5",
-      "msa_mode": "single_sequence",
-      "expectation": "lesson",
-      "cache_key": "15812269f3c7537d",
-      "passed_gate": false,
-      "best_mean_plddt": 25.28,
-      "bytes": 20616966
-    },
-    {
-      "target": "5",
-      "name": "Lysozyme",
-      "url": "/demo-cache/5-lysozyme.json",
-      "sequence_sha256": "f711efa5477291636f1ce3439f3f6333ada3c4962dbedb3edfdbcaf82815e34a",
-      "msa_mode": "mmseqs2_uniref_env",
-      "expectation": "success",
-      "cache_key": "e60379f9017f764e",
-      "passed_gate": true,
-      "best_mean_plddt": 95.18,
-      "bytes": 2652061
-    },
-    {
-      "target": "6",
+      "target": "2",
       "name": "Hemoglobin",
-      "url": "/demo-cache/6-hemoglobin.json",
+      "url": "/demo-cache/2-hemoglobin.json",
       "sequence_sha256": "625c708d1e51d4df14c88a2fc08ec59355f96b51c0ea7a0a5eb5a910b92a0675",
       "msa_mode": "mmseqs2_uniref_env",
       "expectation": "success",
@@ -74,6 +26,54 @@
       "passed_gate": true,
       "best_mean_plddt": 96.66,
       "bytes": 2148021
+    },
+    {
+      "target": "3",
+      "name": "Triosephosphate isomerase",
+      "url": "/demo-cache/3-triosephosphate-isomerase.json",
+      "sequence_sha256": "07ce942bed7a6d284cb6caaa097e23f6dbdab2b795dd03ec3d9b2e90b1a387d7",
+      "msa_mode": "mmseqs2_uniref_env",
+      "expectation": "success",
+      "cache_key": "86a11df813daa9a9",
+      "passed_gate": true,
+      "best_mean_plddt": 95.69,
+      "bytes": 4135465
+    },
+    {
+      "target": "4",
+      "name": "Salivary amylase",
+      "url": "/demo-cache/4-salivary-amylase.json",
+      "sequence_sha256": "698e32c77817660170991ea834aceddb0899ad0ca41288d2612fba8f4e5a0e72",
+      "msa_mode": "mmseqs2_uniref_env",
+      "expectation": "success",
+      "cache_key": "97596491053aed34",
+      "passed_gate": true,
+      "best_mean_plddt": 97.04,
+      "bytes": 10392061
+    },
+    {
+      "target": "5",
+      "name": "Carbonic anhydrase",
+      "url": "/demo-cache/5-carbonic-anhydrase.json",
+      "sequence_sha256": "e6a24c903c1ef211037c64a6835a8a484f48b17be1cae50d6998913f21acf7d4",
+      "msa_mode": "mmseqs2_uniref_env",
+      "expectation": "success",
+      "cache_key": "d795c72959cc142f",
+      "passed_gate": true,
+      "best_mean_plddt": 96.6,
+      "bytes": 4566275
+    },
+    {
+      "target": "6",
+      "name": "GFP",
+      "url": "/demo-cache/6-gfp.json",
+      "sequence_sha256": "cb510b908de0ac5320f8862097d1df509ba225c88e7be8d14154a17c6328f04a",
+      "msa_mode": "single_sequence",
+      "expectation": "lesson",
+      "cache_key": "f97004a4497f1f3b",
+      "passed_gate": false,
+      "best_mean_plddt": 26.19,
+      "bytes": 4305538
     }
   ]
 }

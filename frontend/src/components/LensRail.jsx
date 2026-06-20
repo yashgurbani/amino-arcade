@@ -1,13 +1,16 @@
 import { createElement as h } from "react";
 import { st } from "../lib/viewer";
 
-export default function LensRail({ colors, lensIds, defs, overlays, lensState, lensMetric, chips, onToggle, onExpand }) {
+export default function LensRail({ colors, lensIds, defs, overlays, lensState, lensMetric, chips, onToggle, onExpand, notice, noticeColor }) {
   const C = colors;
   return {
     rail: h("aside", { style: st("grid-row:1 / span 2;border-right:1px solid #2c2350;display:flex;flex-direction:column;min-height:0;background:linear-gradient(180deg,#150f30,#0e0a22);") },
       h("div", { style: st("flex:none;padding:16px 16px 8px;") },
         h("div", { style: st("font-family:'JetBrains Mono',monospace;font-weight:700;letter-spacing:2px;font-size:11px;color:#9d8fd6;") }, "LIVE LENSES"),
         h("div", { style: st("font-size:11px;color:#6f6298;margin-top:5px;line-height:1.45;") }, "Toggle a concept to project it onto the structure. Hit ⤢ to open the full interactive scene.")),
+      notice ? h("div", { "data-testid": "lens-notice", style: st(`flex:none;margin:0 12px 8px;padding:10px 11px;border-radius:10px;background:${(noticeColor || "#37d6ff")}14;border:1px solid ${(noticeColor || "#37d6ff")}55;`) },
+        h("div", { style: st("font-family:'JetBrains Mono',monospace;font-size:8px;letter-spacing:1.5px;color:#9d8fd6;margin-bottom:5px;") }, "WHAT TO NOTICE"),
+        h("div", { style: st("font-size:11px;line-height:1.45;color:#d9d2ef;") }, notice)) : null,
       h("div", { style: st("flex:1;overflow-y:auto;padding:8px 12px 14px;display:flex;flex-direction:column;gap:11px;") },
         lensIds.map((id) => {
           const on = overlays[id], col = defs[id].color;

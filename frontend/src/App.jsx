@@ -995,6 +995,8 @@ class App extends Component {
       chips,
       onToggle: (id) => this.toggleOverlay(id),
       onExpand: (id) => this.setState({ expanded: id }),
+      notice: curT.notice,
+      noticeColor: curConceptColor,
     });
     const realLensModel = realLensEntry ? computeLensModel({
       entry: realLensEntry,
@@ -1008,6 +1010,8 @@ class App extends Component {
     const liveTriangle = hasReal ? (realGeometry.bond_outliers ?? 0) : f.triViol;
     const liveClashes = hasReal ? (realGeometry.clashes ?? 0) : f.clashes;
     const liveFape = hasReal ? realLensEntry?.fape_to_reference_a : (st2.reflected ? 3.6 : fp.fape);
+    const alignedRmsd = hasReal ? realLensEntry?.rmsd_to_reference_a : null;
+    const deltaPlddt = hasReal ? realLensEntry?.delta_mean_plddt : null;
     const mapTabs = [
       { id: "contact", label: "CONTACT" },
       { id: "pae", label: "PAE", disabled: hasReal && !this.realPae() },
@@ -1092,10 +1096,10 @@ class App extends Component {
             h("div", { style: st("flex:none;padding:16px;border-bottom:1px solid #2c2350;") },
               h("div", { style: st("font-family:'JetBrains Mono',monospace;font-weight:700;letter-spacing:2px;font-size:11px;color:#9d8fd6;margin-bottom:11px;") }, "LIVE READOUT"),
               h("div", { style: st("display:grid;grid-template-columns:1fr 1fr;gap:9px;") },
-                h("div", { style: st(dmd) }, h("div", { style: st("font-family:'JetBrains Mono',monospace;font-size:8.5px;letter-spacing:1px;color:#7a6aa8;") }, "MEAN pLDDT"), h("div", { style: st(`font-family:'JetBrains Mono',monospace;font-weight:800;font-size:21px;color:${this.plddt(meanP)};`) }, meanP.toFixed(0))),
+                h("div", { style: st(dmd) }, h("div", { style: st("font-family:'JetBrains Mono',monospace;font-size:8.5px;letter-spacing:1px;color:#7a6aa8;") }, "MEAN pLDDT"), h("div", { style: st(`font-family:'JetBrains Mono',monospace;font-weight:800;font-size:21px;color:${this.plddt(meanP)};`) }, hasReal ? meanP.toFixed(1) : meanP.toFixed(0))),
                 h("div", { style: st(dmd) }, h("div", { style: st("font-family:'JetBrains Mono',monospace;font-size:8.5px;letter-spacing:1px;color:#7a6aa8;") }, hasReal ? "BOND OUTLIERS" : "△ VIOLATION"), h("div", { style: st("font-family:'JetBrains Mono',monospace;font-weight:800;font-size:21px;color:#3dffa8;") }, hasReal ? String(liveTriangle) : liveTriangle.toFixed(1))),
                 h("div", { style: st(dmd) }, h("div", { style: st("font-family:'JetBrains Mono',monospace;font-size:8.5px;letter-spacing:1px;color:#7a6aa8;") }, "CLASHES"), h("div", { style: st("font-family:'JetBrains Mono',monospace;font-weight:800;font-size:21px;color:#ff4fd8;") }, String(liveClashes))),
-                h("div", { style: st(dmd) }, h("div", { style: st("font-family:'JetBrains Mono',monospace;font-size:8.5px;letter-spacing:1px;color:#7a6aa8;") }, hasReal ? "Cα-FAPE (Å)" : "FAPE"), h("div", { style: st(`font-family:'JetBrains Mono',monospace;font-weight:800;font-size:21px;color:${st2.reflected ? C.danger : C.amber};`) }, typeof liveFape === "number" ? liveFape.toFixed(2) : "--")))),
+                h("div", { style: st(dmd) }, h("div", { style: st("font-family:'JetBrains Mono',monospace;font-size:8.5px;letter-spacing:1px;color:#7a6aa8;") }, hasReal ? "Cα-FAPE (Å)" : "FAPE"), h("div", { style: st(`font-family:'JetBrains Mono',monospace;font-weight:800;font-size:21px;color:${st2.reflected ? C.danger : C.amber};`) }, typeof liveFape === "number" ? liveFape.toFixed(2) : "--")), ...(hasReal ? [h("div", { key: "rmsdfinal", style: st(dmd) }, h("div", { style: st("font-family:'JetBrains Mono',monospace;font-size:8.5px;letter-spacing:1px;color:#7a6aa8;") }, "Δ RMSD→FINAL (Å)"), h("div", { style: st("font-family:'JetBrains Mono',monospace;font-weight:800;font-size:21px;color:#37d6ff;") }, typeof alignedRmsd === "number" ? alignedRmsd.toFixed(2) : "--")), h("div", { key: "dplddt", style: st(dmd) }, h("div", { style: st("font-family:'JetBrains Mono',monospace;font-size:8.5px;letter-spacing:1px;color:#7a6aa8;") }, "Δ pLDDT / CYCLE"), h("div", { style: st("font-family:'JetBrains Mono',monospace;font-weight:800;font-size:21px;color:#3dffa8;") }, typeof deltaPlddt === "number" ? (deltaPlddt >= 0 ? "+" : "") + deltaPlddt.toFixed(2) : "--"))] : []))),
             showLowConfidenceLesson ? h("div", { "data-testid": "low-confidence-lesson", style: st("flex:none;margin:12px 16px 0;padding:12px;border-radius:9px;background:rgba(255,179,71,.08);border:1px solid rgba(255,179,71,.45);font-size:10.5px;line-height:1.5;color:#d9d2ef;") },
               h("div", { style: st("font-family:'JetBrains Mono',monospace;font-weight:800;letter-spacing:.8px;color:#ffb347;margin-bottom:6px;") }, truthLabels.lowConfidenceTitle),
               h("div", null, truthLabels.lowConfidenceBody),
