@@ -386,6 +386,12 @@ def _localcolabfold_command(executable: str, fasta: Path, out_dir: Path) -> list
     max_extra_seq = os.environ.get("LOCALCOLABFOLD_MAX_EXTRA_SEQ")
     if max_extra_seq:
         cmd.extend(["--max-extra-seq", max_extra_seq])
+    num_seeds = os.environ.get("LOCALCOLABFOLD_NUM_SEEDS")
+    if num_seeds:
+        cmd.extend(["--num-seeds", num_seeds])
+    random_seed = os.environ.get("LOCALCOLABFOLD_RANDOM_SEED")
+    if random_seed:
+        cmd.extend(["--random-seed", random_seed])
     if os.environ.get("LOCALCOLABFOLD_OVERWRITE", "1") != "0":
         cmd.append("--overwrite-existing-results")
     if os.environ.get("LOCALCOLABFOLD_DISABLE_UNIFIED_MEMORY", "0") != "0":
@@ -496,6 +502,7 @@ def _predict_localcolabfold(
     fasta.write_text(f">query\n{sequence}\n", encoding="utf-8")
     cmd = _localcolabfold_command(executable, fasta, out_dir)
     msa_mode = os.environ.get("LOCALCOLABFOLD_MSA_MODE") or None
+    max_msa = os.environ.get("LOCALCOLABFOLD_MAX_MSA") or None
 
     start = perf_counter()
     returncode, stdout, stderr = _run_cancellable_subprocess(
@@ -573,6 +580,7 @@ def _predict_localcolabfold(
             stdout_tail=stdout[-2000:],
             msa_mode=msa_mode,
             msa_depth=msa_depth,
+            max_msa=max_msa,
         ),
         frames,
         {
@@ -583,6 +591,7 @@ def _predict_localcolabfold(
             "guardrail": guard,
             "msa_mode": msa_mode,
             "msa_depth": msa_depth,
+            "max_msa": max_msa,
             "pae": pae,
             "adapter_warning": adapter_warning,
             "trajectory_note": "LocalColabFold recycle PDBs parsed as real inference-refinement frames." if has_recycle_frames else "Endpoint only; no intermediate recycle PDBs were exposed.",

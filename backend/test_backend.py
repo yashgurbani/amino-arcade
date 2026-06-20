@@ -346,6 +346,18 @@ JSON
         self.assertIn("--disable-unified-memory", template_cmd)
         self.assertEqual(template_cmd[-2:], [str(fasta), str(out_dir)])
 
+    def test_localcolabfold_command_supports_reproducibility_seed_sweep(self):
+        fasta = Path("query.fasta")
+        out_dir = Path("out")
+        with patch.dict(
+            os.environ,
+            {"LOCALCOLABFOLD_NUM_SEEDS": "2", "LOCALCOLABFOLD_RANDOM_SEED": "0"},
+            clear=False,
+        ):
+            cmd = _localcolabfold_command("colabfold_batch", fasta, out_dir)
+        self.assertEqual(cmd[cmd.index("--num-seeds") + 1], "2")
+        self.assertEqual(cmd[cmd.index("--random-seed") + 1], "0")
+
     def test_msa_mode_is_normalized_into_job_options_and_cache_key(self):
         sequence = "MGEELFTG"
         opts_a = job_queue.normalize_options({"num_recycle": 8, "num_models": 1, "msa_mode": "single_sequence"})

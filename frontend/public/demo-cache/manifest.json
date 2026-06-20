@@ -29,15 +29,15 @@
     },
     {
       "target": "3",
-      "name": "Triosephosphate isomerase",
-      "url": "/demo-cache/3-triosephosphate-isomerase.json",
-      "sequence_sha256": "07ce942bed7a6d284cb6caaa097e23f6dbdab2b795dd03ec3d9b2e90b1a387d7",
+      "name": "Phosphoglycerate kinase",
+      "url": "/demo-cache/3-phosphoglycerate-kinase.json",
+      "sequence_sha256": "dc196abe084628dcec8f565564e708c07a686855c9991898f10001da340f4d8e",
       "msa_mode": "mmseqs2_uniref_env",
       "expectation": "success",
-      "cache_key": "86a11df813daa9a9",
+      "cache_key": "df5d77063e92e201",
       "passed_gate": true,
-      "best_mean_plddt": 95.69,
-      "bytes": 4135465
+      "best_mean_plddt": 94.33,
+      "bytes": 11601541
     },
     {
       "target": "4",

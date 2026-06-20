@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { arcadeTargets, GFP_SEQ, AMY_SEQ, CA2_SEQ, TIM_SEQ } from "./targets.js";
+import { arcadeTargets, GFP_SEQ, AMY_SEQ, CA2_SEQ, PGK_SEQ } from "./targets.js";
 
 test("arcadeTargets exports six curated targets with unique ids", () => {
   const targets = arcadeTargets();
@@ -28,9 +28,10 @@ test("GFP remains the explicit single-sequence lesson target", () => {
 
 test("recycling lens uses the measured Goldilocks winner", () => {
   const recycling = arcadeTargets().find((t) => t.concept === "recycling");
-  assert.equal(recycling.name, "Triosephosphate isomerase");
-  assert.equal(recycling.seq, TIM_SEQ);
-  assert.equal(recycling.pdb, "1HTI");
+  assert.equal(recycling.name, "Phosphoglycerate kinase");
+  assert.equal(recycling.seq, PGK_SEQ);
+  assert.equal(recycling.pdb, "3PGK");
+  assert.match(recycling.notice, /intentionally subsampled to 16:32/i);
 });
 
 test("new coevolution/FAPE swaps fold within the 768-residue bound", () => {

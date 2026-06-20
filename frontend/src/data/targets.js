@@ -20,6 +20,8 @@ export const LYZ_SEQ =
   "MNIFEMLRIDEGLRLKIYKATEGYYTIGIGHLLTKSPSLNAAKSELDKAIGRNTNGVITKDEAEKLFNQDVDAAVRGILRNAKLKPVYDSLDAVRRAALINMVFQMGETGVAGFTNSLRMLQQKRWDEAAVNLAKSRWYNQTPNRAKRVITTFRTGTWDAYKNL";
 export const TIM_SEQ =
   "APSRKFFVGGNWKMNGRKQSLGELIGTLNAAKVPADTEVVCAPPTAYIDFARQKLDPKIAVAAQNCYKVTNGAFTGEISPGMIKDCGATWVVLGHSERRHVFGESDELIGQKVAHALAEGLGVIACIGEKLDEREAGITEKVVFEQTKVIADNVKDWSKVVLAYEPVWAIGTGKTATPQQAQEVHEKLRGWLKSNVSDAVAQSTRIIYGGSVTGATCKELASQPDVDGFLVGGASLKPEFVDIINAKQ";
+export const PGK_SEQ =
+  "MSLSSKLSVQDLDLKDKRVFIRVDFNVPLDGKKITSNQRIVAALPTIKYVLEHHPRYVVLASHLGRPNGERNEKYSLAPVAKELQSLLGKDVTFLNDCVGPEVEAAVKASAPGSVILLENLRYHIEEEGSRKVDGQKVKASKEDVQKFRHELSSLADVYINDAFGTAHRAHSSMVGFDLPQRAAGFLLEKELKYFGKALENPTRPFLAILGGAKVADKIQLIDNLLDKVDSIIIGGGMAFTFKKVLENTEIGDSIFDKAVGPEIAKLMEKAKAKGVEVVLPVDFIIADAFSASANTKTVTDKEGIPAGWQGLDNGPESRKLFAATVAKATVILWNGPPGVFEFEKFAAGTKALLDEVVKSSAAGNTVIIGGGDTATVAKKYGVTDKISHVSTGGGASLELLEGKELPGVAFLSEKK";
 export const HBA_SEQ =
   "VLSPADKTNVKAAWGKVGAHAGEYGAEALERMFLSFPTTKTYFPHFDLSHGSAQVKGHGKKVADALTNAVAHVDDMPNALSALSDLHAHKLRVDPVNFKLLSHCLLVTLAAHLPAEFTPAVHASLDKFLASVSTVLTSKYR";
 // Human salivary alpha-amylase, mature chain from PDB 1SMD (496 aa).
@@ -37,9 +39,9 @@ export function arcadeTargets() {
     { n: "2", name: "Hemoglobin", full: "Oxygen transport - the red in blood", seed: 33, seq: HBA_SEQ, pdb: "2HHB", concept: "all", tag: "All five lenses", msaMode: "mmseqs2_uniref_env", expectation: "success",
       notice: "Every lens at once: a confident blue core, recycles converging, coevolved contacts snapping in. The alpha-chain that carries your oxygen.",
       blurb: "Carries oxygen in your red blood cells and gives blood its color; its defects cause anemia and sickle-cell disease. A grand tour - every lens switched on at once. (Folding the alpha chain.)" },
-    { n: "3", name: "Triosephosphate isomerase", full: "How your cells extract energy from sugar", seed: 27, seq: TIM_SEQ, pdb: "1HTI", concept: "recycling", tag: "Recycling", msaMode: "mmseqs2_uniref_env", expectation: "success",
-      notice: "Watch mean pLDDT climb and aligned RMSD fall as the eight-stranded barrel settles over recycles. This is representational refinement, not physical folding time.",
-      blurb: "A core engine of glycolysis - how your cells extract energy from sugar. Its eight-stranded TIM barrel showed the largest measured recycle gain of the tested Goldilocks candidates (+6.29 mean pLDDT, 1.21 A aligned movement to the final frame)." },
+    { n: "3", name: "Phosphoglycerate kinase", full: "Glycolysis - making ATP from sugar", seed: 27, seq: PGK_SEQ, pdb: "3PGK", concept: "recycling", tag: "Recycling", msaMode: "mmseqs2_uniref_env", expectation: "success",
+      notice: "MSA intentionally subsampled to 16:32 so recycling has visible work to do. Watch mean pLDDT climb ~15 points and aligned RMSD fall from >3 A; this is representational refinement, not physical folding time.",
+      blurb: "A two-domain glycolysis enzyme that helps cells make ATP from sugar. This teaching run intentionally subsamples the MSA to 16:32: both tested seeds finished near 94 mean pLDDT while climbing +14.65 to +15.91 over recycles. With a deeper MSA it starts near the answer and climbs only ~3.5-3.9 points." },
     { n: "4", name: "Salivary amylase", full: "The enzyme in your spit that digests starch", seed: 3, seq: AMY_SEQ, pdb: "1SMD", concept: "coevolution", tag: "Coevolution", msaMode: "mmseqs2_uniref_env", expectation: "success",
       notice: "The deep MSA's correlated mutations pin distant residues together - coevolution building the cleft that splits starch (why chewed bread turns sweet).",
       blurb: "The enzyme in your saliva that breaks starch into sugar - the reason bread tastes sweet the longer you chew it. A large, well-folding enzyme with a deep evolutionary family, so the coevolution signal is strong. (Mature human salivary alpha-amylase, 496 aa.)" },

@@ -119,6 +119,9 @@ def main() -> int:
     parser.add_argument("--msa-mode", default=None)
     parser.add_argument("--num-recycle", type=int, default=8)
     parser.add_argument("--num-models", type=int, default=1)
+    parser.add_argument("--max-msa", default=None)
+    parser.add_argument("--num-seeds", type=int, default=None)
+    parser.add_argument("--random-seed", type=int, default=None)
     parser.add_argument("--threshold", type=float, default=70.0)
     parser.add_argument("--baseline", type=float, default=26.0)
     parser.add_argument("--demo-public", action="store_true")
@@ -132,8 +135,18 @@ def main() -> int:
             "msa_mode": args.msa_mode or target["msaMode"],
         }
     )
-    command = ["adopted-colabfold-output", str(args.out_dir)]
-    result = save_cached_prediction(target["seq"], "localcolabfold", _build_result(target, args.out_dir, options, command), options)
+    command = ["adopted-colabfold-output"]
+    if args.max_msa:
+        command.extend(["--max-msa", args.max_msa])
+    if args.num_seeds is not None:
+        command.extend(["--num-seeds", str(args.num_seeds)])
+    if args.random_seed is not None:
+        command.extend(["--random-seed", str(args.random_seed)])
+    command.append(str(args.out_dir))
+    adopted = _build_result(target, args.out_dir, options, command)
+    adopted.setdefault("meta", {})["max_msa"] = args.max_msa
+    adopted.setdefault("provenance", {}).setdefault("metadata", {})["max_msa"] = args.max_msa
+    result = save_cached_prediction(target["seq"], "localcolabfold", adopted, options)
     verdict = evaluate_sanity_gate(
         result,
         plddt_threshold=args.threshold,
