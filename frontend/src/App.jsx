@@ -27,6 +27,8 @@ import MolPlayfield from "./components/MolPlayfield";
 import ContactDeltaMap from "./components/ContactDeltaMap";
 import EnsemblePanel from "./components/EnsemblePanel";
 import LensRail from "./components/LensRail";
+import TourOverlay from "./components/TourOverlay";
+import { glossary, equationDeck } from "./data/paperGrounding";
 import PaePanel from "./components/PaePanel";
 import PhysicsModePanel from "./components/PhysicsModePanel";
 import RecycleTimeline from "./components/RecycleTimeline";
@@ -76,7 +78,7 @@ class App extends Component {
     // backend
     engine: "localcolabfold", capabilities: [], result: null, resultSeq: null,
     job: null, loading: false, error: "", archiveJobs: [], report: null, realIndex: 0, realPlaying: false, selectedModel: 0, runLog: [], jobPopupOpen: false, pendingSeq: "", lastRun: null,
-    inspectorTab: "result", physicsStatus: null, physicsRunning: false, physicsResult: null, physicsError: "",
+    inspectorTab: "result", tourOpen: false, physicsStatus: null, physicsRunning: false, physicsResult: null, physicsError: "",
   };
 
   componentDidMount() {
@@ -927,17 +929,34 @@ class App extends Component {
   renderCustomMap() { return this.renderMap(); }
 
   conceptDefs() { return {
-    coevolution: { name: "Coevolution", color: this.C.coev, q: "Two residues mutate together across evolution — does that mean they touch?", boundary: "A 6×6 planted-contact matrix is fully inspectable; AF2 learns a pair representation rather than inverting DCA.", paper: "Fig. 1; Supplement §2" },
-    triangle: { name: "Triangle Updates", color: this.C.tri, q: "Can you edit residue–residue distances independently of each other?", boundary: "We relax explicit distances; the Evoformer operates on learned pair features.", paper: "p.586; Supplement §1.6" },
-    ipa: { name: "Invariant Point Attention", color: this.C.ipa, q: "If you rotate and translate the whole protein, should the model's read of its geometry change?", boundary: "Two frames, two points — real IPA mixes scalar+point+pair-bias attention over many points.", paper: "Fig. 3; Algorithm 22" },
-    fape: { name: "FAPE & Chirality", color: this.C.fape, q: "If a predicted structure matches all distances, is it correct?", boundary: "A 2D chain illustrates the failure; real FAPE is over all atoms in all frames, with a clamp.", paper: "p.587; Supplement §1.9.2" },
-    recycling: { name: "Recycling", color: this.C.rec, q: "Is the iteration you watch a movie of a protein folding in time?", boundary: "The trajectory is representational iteration — never narrate it as folding kinetics.", paper: "p.585; Algorithm 2" } }; }
+    coevolution: { name: "Coevolution", color: this.C.coev, q: "Two residues mutate together across evolution — does that mean they touch?", boundary: "A 6×6 planted-contact matrix is fully inspectable; AF2 learns a pair representation rather than inverting DCA.", paper: "Fig. 1; Supplement §2", read: "In the matrix, switch covariance -> precision: indirect echoes fade, true contacts stay. Lit residues are coevolving partners that sit close in 3D." },
+    triangle: { name: "Triangle Updates", color: this.C.tri, q: "Can you edit residue–residue distances independently of each other?", boundary: "We relax explicit distances; the Evoformer operates on learned pair features.", paper: "p.586; Supplement §1.6", read: "Edit one distance and watch the max triangle violation spike red - a pair table cannot become a 3D shape until every triple is consistent." },
+    ipa: { name: "Invariant Point Attention", color: this.C.ipa, q: "If you rotate and translate the whole protein, should the model's read of its geometry change?", boundary: "Two frames, two points — real IPA mixes scalar+point+pair-bias attention over many points.", paper: "Fig. 3; Algorithm 22", read: "Rotate the whole scene: the naive readout changes, the IPA readout does not. Geometry judged in residue-local frames is pose-independent." },
+    fape: { name: "FAPE & Chirality", color: this.C.fape, q: "If a predicted structure matches all distances, is it correct?", boundary: "A 2D chain illustrates the failure; real FAPE is over all atoms in all frames, with a clamp.", paper: "p.587; Supplement §1.9.2", read: "Hit REFLECT: the distances stay identical (a distance metric is fooled) but FAPE jumps, because the handedness flipped. Biology is chiral." },
+    recycling: { name: "Recycling", color: this.C.rec, q: "Is the iteration you watch a movie of a protein folding in time?", boundary: "The trajectory is representational iteration — never narrate it as folding kinetics.", paper: "p.585; Algorithm 2", read: "Step the recycles: the shape moves toward a fixed point and stops changing. This is representational iteration, not folding in time." } }; }
 
   arcadeTargets() { return curatedArcadeTargets(); }
   selectTarget(i) { const t = this.arcadeTargets()[i], ov = { coevolution: false, triangle: false, ipa: false, fape: false, recycling: false };
     if (t.concept === "all") Object.keys(ov).forEach((k) => (ov[k] = true)); else ov[t.concept] = true;
     clearInterval(this._playT); this._playT = null;
     this.setState({ target: i, overlays: ov, result: null, realIndex: 0, realPlaying: false, selectedModel: 0, selectedPae: null, frame: 5 }); }
+  // Stable handler (class field) so the tour's effect deps don't churn. Selects
+  // the example protein that best demonstrates a lens, switching its overlay on.
+  focusLens = (concept, pdb) => {
+    if (!concept && !pdb) return;
+    const targets = this.arcadeTargets();
+    const idx = pdb ? targets.findIndex((t) => t.pdb === pdb) : targets.findIndex((t) => t.concept === concept);
+    if (idx < 0) return;
+    if (idx !== this.state.target) this.selectTarget(idx);
+    // Force the requested lens overlay on, decoupled from the target's own
+    // concept, so e.g. the triangle lens can be demonstrated on a confident
+    // beta-sheet protein rather than the no-MSA GFP failure.
+    if (concept && concept !== "all") {
+      const ov = { coevolution: false, triangle: false, ipa: false, fape: false, recycling: false };
+      ov[concept] = true;
+      this.setState({ overlays: ov });
+    }
+  };
   stageSeed() { return this.arcadeTargets()[this.state.target].seed; }
 
   renderResultInspector(hasReal) {
@@ -1049,6 +1068,7 @@ class App extends Component {
           h("button", { onClick: () => this.setView("custom"), title: "Fold It Yourself custom sequence mode", style: st(`padding:7px 13px;border-radius:7px;border:none;cursor:pointer;font-family:${mono};font-weight:700;font-size:11.5px;letter-spacing:1px;background:${st2.view === "custom" ? "linear-gradient(135deg,#b06bff,#ff4fd8)" : "transparent"};color:${st2.view === "custom" ? "#08060f" : C.mid};`) }, "FIY · FOLD IT YOURSELF")),
         st2.view === "stage" ? h("div", { style: st("margin-left:4px;display:flex;gap:7px;") }, tg.map((t, i) => h("button", { key: i, onClick: () => this.selectTarget(i), style: st(`width:30px;height:30px;border-radius:8px;cursor:pointer;font-family:${mono};font-weight:800;font-size:13px;border:1px solid ${st2.target === i ? C.cyan : C.border};background:${st2.target === i ? "rgba(47,214,255,.18)" : "#0a0612"};color:${st2.target === i ? C.cyan : C.mid};box-shadow:${st2.target === i ? "0 0 12px rgba(47,214,255,.4)" : "none"};`) }, t.n))) : null,
         h("div", { style: st("flex:1;") }),
+        h("button", { onClick: () => this.setState({ tourOpen: true }), title: "Guided tour: how AlphaFold turns a sequence into a structure (and what it is NOT)", style: st("display:flex;align-items:center;gap:8px;padding:7px 13px;border-radius:9px;background:#0a0612;border:1px solid #3dffa8;cursor:pointer;") }, h("span", { style: st("font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:1.5px;color:#3dffa8;") }, "▶ GUIDED TOUR")),
         h("button", { onClick: () => this.setState({ showScore: true }), title: "how the score is computed", style: st("display:flex;align-items:center;gap:12px;padding:7px 16px;border-radius:9px;background:#0a0612;border:1px solid #4a3d72;cursor:pointer;background-image:radial-gradient(circle,rgba(255,170,60,.10) 1px,transparent 1px);background-size:4px 4px;") },
           h("span", { style: st("font-family:'JetBrains Mono',monospace;font-size:8.5px;letter-spacing:2px;color:#7a6aa8;") }, "SCORE"),
           h("span", { style: st("font-family:'JetBrains Mono',monospace;font-weight:800;font-size:24px;color:#ffb347;text-shadow:0 0 12px rgba(255,170,60,.8);animation:aa-flick 4s infinite;") }, score)),
@@ -1056,6 +1076,8 @@ class App extends Component {
           h("span", { style: st(`width:7px;height:7px;border-radius:50%;background:${st2.loading ? C.cyan : C.green};box-shadow:0 0 8px ${st2.loading ? C.cyan : C.green};`) }),
           h("span", null, `${st2.engine} · 768aa cap`)),
         h("button", { onClick: () => this.setState({ showInfo: true }), title: "result inspector, downloads, and backend specifics", style: st("width:38px;height:38px;border-radius:9px;background:#0a0612;border:1px solid #4a3d72;color:#9d8fd6;font-family:'JetBrains Mono',monospace;font-size:15px;cursor:pointer;") }, "ⓘ")),
+
+      h(TourOverlay, { open: st2.tourOpen, onClose: () => this.setState({ tourOpen: false }), conceptDefs: defs, glossary, equationDeck, colors: C, onFocusLens: this.focusLens }),
 
       st2.view === "stage" ? h("div", { style: st("flex:1;display:flex;flex-direction:column;min-height:0;") },
         h("div", { style: st("flex:none;display:flex;align-items:center;gap:18px;padding:11px 22px;background:#100c24;border-bottom:1px solid #2c2350;") },
@@ -1192,8 +1214,10 @@ class App extends Component {
           h("div", { style: st("display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;") },
             h("div", null, h("div", { style: st(`font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:1px;color:${ed.color};`) }, "FULL SCENE"), h("h2", { style: st("margin:4px 0 0;font-family:'JetBrains Mono',monospace;font-weight:700;font-size:22px;") }, ed.name)),
             h("button", { onClick: () => this.setState({ expanded: null }), style: st("background:none;border:none;color:#9d8fd6;font-size:22px;cursor:pointer;") }, "✕")),
+          h("div", { style: st("margin:0 0 12px;padding:6px 11px;border-radius:8px;background:rgba(176,107,255,.10);border:1px solid rgba(176,107,255,.4);font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.4px;color:#c9b6ff;") }, "◆ INTERACTIVE SIMULATION — a teaching toy you can poke. NOT live AlphaFold output."),
           h("p", { style: st("margin:0 0 18px;font-size:14px;line-height:1.5;color:#cabbf0;max-width:740px;") }, h("span", { style: st("font-family:'JetBrains Mono',monospace;font-size:12px;color:#ffb347;") }, "ASK ▸ "), ed.q),
           this.renderScene(st2.expanded),
+          ed.read ? h("div", { style: st("margin-top:14px;padding:11px 14px;border-radius:10px;background:rgba(61,255,168,.07);border:1px solid rgba(61,255,168,.3);font-size:12.5px;line-height:1.5;color:#bfeede;") }, h("span", { style: st("font-family:'JetBrains Mono',monospace;font-size:11px;color:#3dffa8;") }, "LOOK FOR ▸ "), ed.read) : null,
           h("div", { style: st("margin-top:18px;padding:13px 15px;border-radius:10px;background:rgba(255,170,60,.07);border:1px solid rgba(255,170,60,.25);font-size:12.5px;line-height:1.55;color:#e0cfa6;") }, h("span", { style: st("font-family:'JetBrains Mono',monospace;font-size:11px;color:#ffb347;") }, "TOY ⟷ REAL ▸ "), ed.boundary, "  ", h("span", { style: st("color:#9d8fd6;") }, "(" + ed.paper + ")")))) : null,
 
       st2.showScore ? h("div", { onClick: () => this.setState({ showScore: false }), style: st("position:fixed;inset:0;z-index:55;background:rgba(6,4,15,.8);backdrop-filter:blur(5px);display:flex;align-items:center;justify-content:center;padding:24px;") },

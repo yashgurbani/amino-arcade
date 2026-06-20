@@ -9,6 +9,9 @@ import { groupResidueColors, residueColorLegend } from "../lib/lensColors";
 import { superposePdbToReference } from "../lib/superpose";
 import { st, withTimeout, fallbackPdb } from "../lib/viewer";
 
+// Per-lens accent colours (match App C.coev/tri/ipa/fape/rec) for solid overlays.
+const LENS_COLORS = { coevolution: "#2fd6ff", triangle: "#3dffa8", ipa: "#b06bff", fape: "#ff4fd8", recycling: "#ffb347" };
+
 class MolPlayfield extends Component {
   constructor(props) { super(props); this.host = null; this.plugin = null; this.roots = new WeakMap(); this.state = { mode: "loading", lensLabel: "" }; this._mounted = false; this._loadSeq = 0; this._contactLineRefs = []; }
   componentDidMount() { this._mounted = true; this.load({ resetCamera: true }); }
@@ -19,7 +22,7 @@ class MolPlayfield extends Component {
       this.load({ resetCamera: !frameToFrame });
     } else if (prev.colorMode !== this.props.colorMode) this.applyVisualTheme();
     if ((prev.activeLenses || []).join(",") !== (this.props.activeLenses || []).join(",") || (prev.selectedResidues || []).join(",") !== (this.props.selectedResidues || []).join(",") || prev.lens !== this.props.lens || prev.lensModel !== this.props.lensModel) this.applyLensAnnotations();
-    if (prev.lensModel !== this.props.lensModel) this.applyResidueOverlay();
+    if (prev.lensModel !== this.props.lensModel || (prev.activeLenses || []).join(",") !== (this.props.activeLenses || []).join(",") || prev.lens !== this.props.lens) this.applyResidueOverlay();
     if (prev.lensModel !== this.props.lensModel || (prev.activeLenses || []).join(",") !== (this.props.activeLenses || []).join(",")) this.applyContactLines();
   }
   componentWillUnmount() { this._mounted = false; this._loadSeq += 1; try { if (this.plugin && this.plugin.dispose) this.plugin.dispose(); } catch (e) { void e; } this.plugin = null; this._contactLineRefs = []; }
@@ -83,6 +86,22 @@ class MolPlayfield extends Component {
     await this.applyResidueOverlay();
   }
 
+  // Representative residues per lens. Real computed residues win when a fold is
+  // loaded; otherwise these clearly-illustrative presets give every lens a
+  // visible mark so toggling always does something on the structure.
+  presetResiduesFor(lensId) {
+    const n = Math.max(1, (this.props.frame?.plddt?.length || this.props.fallbackSequence?.length || 30));
+    const clamp = (v) => Math.max(1, Math.min(n, Math.round(v)));
+    const presets = {
+      coevolution: [2, clamp(n / 3), clamp((2 * n) / 3), n - 1],
+      triangle: [3, clamp(n / 2), n - 2],
+      ipa: [clamp(n * 0.25), clamp(n * 0.25) + 1, clamp(n * 0.75), clamp(n * 0.75) + 1],
+      fape: [clamp(n / 2) - 2, clamp(n / 2) - 1, clamp(n / 2), clamp(n / 2) + 1, clamp(n / 2) + 2],
+      recycling: [1, clamp(n / 2), n],
+    };
+    return [...new Set((presets[lensId] || []).map(clamp))];
+  }
+
   async applyResidueOverlay() {
     if (!this.plugin) return;
     const structures = this.plugin.managers?.structure?.hierarchy?.current?.structures || [];
@@ -96,19 +115,32 @@ class MolPlayfield extends Component {
         import("molstar/lib/mol-util/color"),
       ]);
       await clearStructureOverpaint(this.plugin, components);
-      const groups = groupResidueColors(this.props.lensModel?.residueColors);
-      for (const group of groups) {
-        const color = Color(parseInt(group.color.slice(1), 16));
+      const paint = async (residues, hex) => {
+        if (!residues || !residues.length) return;
+        const color = Color(parseInt(String(hex).slice(1), 16));
         await setStructureOverpaint(this.plugin, components, color, async (structure) => {
           const selection = Script.getStructureSelection((Q) => Q.struct.generator.atomGroups({
-            "residue-test": Q.core.set.has([
-              Q.core.type.set(group.residues),
-              Q.struct.atomProperty.macromolecular.label_seq_id(),
-            ]),
+            "residue-test": Q.core.set.has([Q.core.type.set(residues), Q.struct.atomProperty.macromolecular.label_seq_id()]),
             "group-by": Q.struct.atomProperty.macromolecular.residueKey(),
           }), structure);
           return StructureSelection.toLociWithSourceUnits(selection);
         });
+      };
+      // (1) Real per-residue gradient (FAPE displacement / confidence pLDDT).
+      const groups = groupResidueColors(this.props.lensModel?.residueColors);
+      for (const group of groups) await paint(group.residues, group.color);
+      // (2) Solid lens-coloured patches so EVERY toggled lens visibly marks the
+      // structure. Coevolution shows as contact lines; FAPE as the gradient above.
+      // Triangle / IPA / recycling get their representative residues painted in the
+      // lens colour (computed when a fold is loaded, else illustrative presets).
+      const active = (this.props.activeLenses && this.props.activeLenses.length) ? this.props.activeLenses : (this.props.lens ? [this.props.lens] : []);
+      const hasGradient = groups.length > 0;
+      const realResidues = Array.isArray(this.props.lensModel?.highlightResidues) ? this.props.lensModel.highlightResidues : [];
+      for (const lensId of active) {
+        if (lensId === "coevolution") continue;
+        if (lensId === "fape" && hasGradient) continue;
+        const residues = (lensId === "fape" && realResidues.length) ? realResidues : this.presetResiduesFor(lensId);
+        await paint(residues, LENS_COLORS[lensId] || "#ffffff");
       }
     } catch (err) {
       console.info("Mol* residue color overlay unavailable", err);
@@ -203,7 +235,7 @@ class MolPlayfield extends Component {
 
   async applyLensAnnotations() {
     const { active, residues } = this.lensResidues();
-    const label = active.length && residues.length ? `${active.join(" + ")} · residues ${residues.slice(0, 8).join(", ")}${residues.length > 8 ? "…" : ""}` : "";
+    const label = active.length && residues.length ? `${active.join(" + ")} · residues ${residues.slice(0, 8).join(", ")}${residues.length > 8 ? "…" : ""}${this.props.lensModel ? "" : " · illustrative"}` : "";
     if (this.state.lensLabel !== label) this.setState({ lensLabel: label });
     if (!this.plugin) return;
     if (!residues.length) {
