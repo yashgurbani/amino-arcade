@@ -132,7 +132,16 @@ class App extends Component {
       observables: f.observables || {},
     }));
   }
-  realActive() { const fr = this.realFrames(); if (!fr.length) return null; return fr[Math.min(this.state.realIndex, fr.length - 1)]; }
+  expectedResultSeq() {
+    const expected = this.state.view === "stage" ? this.arcadeTargets()[this.state.target]?.seq : this.state.custom.seq;
+    return expected ? cleanSequence(expected) : "";
+  }
+  realActive() {
+    if (this.state.resultSeq !== this.expectedResultSeq()) return null;
+    const fr = this.realFrames();
+    if (!fr.length) return null;
+    return fr[Math.min(this.state.realIndex, fr.length - 1)];
+  }
   analysisActive() {
     const a = this.activeAnalysis();
     if (!a || !a.available || !Array.isArray(a.frames) || !a.frames.length) return null;
