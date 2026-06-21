@@ -22,7 +22,6 @@ Amino Arcade is an interactive way to read the AlphaFold2 paper ([Jumper et al.,
 
 It runs in the browser and works without a GPU using bundled results. When you want real predictions, it connects to local AlphaFold-family inference. Throughout, it keeps one rule: a teaching simulation is never dressed up as a biological prediction. Every structure on screen says where it came from.
 
-It is built for someone reading the paper with a physics or ML background, and for the people they teach.
 
 ## What you can do
 
