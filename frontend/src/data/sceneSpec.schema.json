@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://alphafold-companion.local/schemas/scene-spec.schema.json",
+  "title": "AlphaFold Companion SceneSpec",
+  "type": "object",
+  "required": [
+    "id",
+    "label",
+    "short",
+    "title",
+    "paper",
+    "equation",
+    "focus",
+    "realModel",
+    "abstraction",
+    "controls",
+    "derivedValues",
+    "camera",
+    "annotations",
+    "references"
+  ],
+  "properties": {
+    "id": { "type": "string" },
+    "label": { "type": "string" },
+    "short": { "type": "string" },
+    "title": { "type": "string" },
+    "paper": { "type": "string" },
+    "equation": { "type": "string" },
+    "focus": { "type": "string" },
+    "realModel": { "type": "string" },
+    "abstraction": { "type": "string" },
+    "controls": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "label", "type"],
+        "properties": {
+          "id": { "type": "string" },
+          "label": { "type": "string" },
+          "type": { "enum": ["slider", "toggle", "select", "button"] },
+          "min": { "type": "number" },
+          "max": { "type": "number" },
+          "step": { "type": "number" }
+        }
+      }
+    },
+    "derivedValues": { "type": "array", "items": { "type": "string" } },
+    "camera": {
+      "type": "object",
+      "required": ["mode", "position", "target"],
+      "properties": {
+        "mode": { "enum": ["orthographic", "perspective", "svg-projection"] },
+        "position": { "type": "array", "items": { "type": "number" }, "minItems": 3, "maxItems": 3 },
+        "target": { "type": "array", "items": { "type": "number" }, "minItems": 3, "maxItems": 3 }
+      }
+    },
+    "annotations": { "type": "array", "items": { "type": "string" } },
+    "references": {
+      "type": "object",
+      "required": ["paper", "supplement", "companion"],
+      "properties": {
+        "paper": { "type": "string" },
+        "supplement": { "type": "string" },
+        "companion": { "type": "string" }
+      }
+    }
+  }
+}

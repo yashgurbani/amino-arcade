@@ -1,0 +1,12 @@
+{
+  "fape_loss": 0.34,
+  "chirality_correct": true,
+  "ideal_frames": [
+    {"res": 1, "x": 0.0, "y": 0.0, "z": 0.0},
+    {"res": 2, "x": 1.5, "y": 0.0, "z": 0.0}
+  ],
+  "predicted_frames": [
+    {"res": 1, "x": 0.05, "y": 0.01, "z": -0.02},
+    {"res": 2, "x": 1.45, "y": -0.05, "z": 0.1}
+  ]
+}

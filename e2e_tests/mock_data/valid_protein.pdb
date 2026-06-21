@@ -1,0 +1,8 @@
+HEADER    PROTEIN DATA BANK
+COMPND    MOCK VALID PROTEIN STRUCTURE
+ATOM      1  N   MET A   1       0.000   0.000   0.000  1.00 90.00           N
+ATOM      2  CA  MET A   1       1.460   0.000   0.000  1.00 91.50           C
+ATOM      3  C   MET A   1       2.008   1.419   0.000  1.00 89.20           C
+ATOM      4  O   MET A   1       1.385   2.483   0.000  1.00 92.10           O
+TER       5      MET A   1
+END
