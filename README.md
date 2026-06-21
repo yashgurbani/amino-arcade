@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="docs/assets/hero2.svg" alt="Amino Arcade — an interactive companion to the AlphaFold2 paper" width="100%" />
+<img src="docs/assets/header.svg" alt="Amino Arcade — an interactive companion to the AlphaFold2 paper" width="100%" />
 
 # Amino Arcade
 
