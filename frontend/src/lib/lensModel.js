@@ -6,7 +6,7 @@
 // live in App.jsx.
 //
 // Everything here is derived from coordinates LocalColabFold actually produced.
-// See HANDOFF_PEDAGOGY_AND_LENSES.md, Part 2.
+// See docs/handoffs/HANDOFF_PEDAGOGY_AND_LENSES.md, Part 2.
 
 import { superpose } from "./superpose.js";
 import { contactPairs, contactDelta, parseKey } from "./contactMap.js";

@@ -2,7 +2,7 @@
 
 _Last updated: 2026-06-19_
 
-Source reviewed: `work/design-handoff/PEDAGOGICAL_HANDOFF.md`.
+Source reviewed: `docs/handoffs/PEDAGOGICAL_HANDOFF.md`.
 
 ## Alignment
 

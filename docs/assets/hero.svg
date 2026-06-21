@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 340" width="1200" height="340" role="img" aria-label="Amino Arcade - an interactive companion to the AlphaFold2 paper">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#150f30"/>
+      <stop offset="1" stop-color="#0a0716"/>
+    </linearGradient>
+    <linearGradient id="plddt" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#2f6dff"/>
+      <stop offset="0.35" stop-color="#2fd6ff"/>
+      <stop offset="0.6" stop-color="#3dffa8"/>
+      <stop offset="0.8" stop-color="#ffd23d"/>
+      <stop offset="1" stop-color="#ff8a3d"/>
+    </linearGradient>
+    <linearGradient id="title" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#cbbcff"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1200" height="340" fill="url(#bg)"/>
+
+  <!-- faint dotted matrix, evoking a pair representation grid -->
+  <g fill="#ffffff" opacity="0.05">
+    <g>
+      <rect x="0" y="0" width="1200" height="340" fill="none"/>
+    </g>
+  </g>
+  <g stroke="#ffffff" stroke-width="1" opacity="0.04">
+    <path d="M0 60 H1200 M0 120 H1200 M0 180 H1200 M0 240 H1200 M0 300 H1200"/>
+  </g>
+
+  <!-- confidence-colored backbone ribbon -->
+  <path d="M70 250 C 200 120, 300 360, 430 240 S 660 110, 790 235 S 1010 360, 1150 210"
+        fill="none" stroke="url(#plddt)" stroke-width="22" stroke-linecap="round" opacity="0.18"/>
+  <path d="M70 250 C 200 120, 300 360, 430 240 S 660 110, 790 235 S 1010 360, 1150 210"
+        fill="none" stroke="url(#plddt)" stroke-width="8" stroke-linecap="round"/>
+  <!-- residue nodes along the ribbon -->
+  <g fill="#0a0716" stroke="#2fd6ff" stroke-width="2">
+    <circle cx="70" cy="250" r="5"/><circle cx="430" cy="240" r="5"/><circle cx="790" cy="235" r="5"/><circle cx="1150" cy="210" r="5"/>
+  </g>
+
+  <!-- title block -->
+  <text x="70" y="120" font-family="'JetBrains Mono','SFMono-Regular',ui-monospace,monospace" font-size="62" font-weight="800" letter-spacing="4" fill="url(#title)">AMINO ARCADE</text>
+  <text x="74" y="158" font-family="'JetBrains Mono',ui-monospace,monospace" font-size="19" letter-spacing="1.5" fill="#9d8fd6">An interactive companion to the AlphaFold2 paper.</text>
+
+  <!-- lens chips -->
+  <g font-family="'JetBrains Mono',ui-monospace,monospace" font-size="13" font-weight="700">
+    <g>
+      <rect x="70" y="280" width="118" height="30" rx="8" fill="#37d6ff14" stroke="#37d6ff"/>
+      <text x="129" y="300" fill="#37d6ff" text-anchor="middle">Coevolution</text>
+    </g>
+    <g>
+      <rect x="198" y="280" width="104" height="30" rx="8" fill="#3dffa814" stroke="#3dffa8"/>
+      <text x="250" y="300" fill="#3dffa8" text-anchor="middle">Triangle</text>
+    </g>
+    <g>
+      <rect x="312" y="280" width="64" height="30" rx="8" fill="#c08bff14" stroke="#c08bff"/>
+      <text x="344" y="300" fill="#c08bff" text-anchor="middle">IPA</text>
+    </g>
+    <g>
+      <rect x="386" y="280" width="74" height="30" rx="8" fill="#ff5fd014" stroke="#ff5fd0"/>
+      <text x="423" y="300" fill="#ff5fd0" text-anchor="middle">FAPE</text>
+    </g>
+    <g>
+      <rect x="470" y="280" width="108" height="30" rx="8" fill="#ffb34714" stroke="#ffb347"/>
+      <text x="524" y="300" fill="#ffb347" text-anchor="middle">Recycling</text>
+    </g>
+  </g>
+
+  <!-- pLDDT legend -->
+  <g font-family="'JetBrains Mono',ui-monospace,monospace" font-size="11" fill="#7a6aa8">
+    <text x="980" y="286" text-anchor="start">pLDDT confidence</text>
+    <rect x="980" y="294" width="160" height="10" rx="3" fill="url(#plddt)"/>
+    <text x="980" y="320" text-anchor="start">low</text>
+    <text x="1140" y="320" text-anchor="end">high</text>
+  </g>
+</svg>

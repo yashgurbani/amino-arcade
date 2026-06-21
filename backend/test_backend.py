@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import json
 import stat
 import time
 import unittest
@@ -11,7 +12,11 @@ from pathlib import Path
 from unittest.mock import patch
 
 import numpy as np
-from starlette.exceptions import StarletteDeprecationWarning
+
+try:
+    from starlette.exceptions import StarletteDeprecationWarning
+except ImportError:  # Starlette removed this warning class in newer releases.
+    StarletteDeprecationWarning = DeprecationWarning
 
 warnings.filterwarnings(
     "ignore",
@@ -40,6 +45,8 @@ class TestBackendAPI(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         data = response.json()
         self.assertEqual(data["status"], "success")
+        self.assertEqual(data["prediction_kind"], "teaching-sim")
+        self.assertEqual(data["prediction_label"], data["provenance"]["label"])
         self.assertEqual(data["provenance"]["kind"], "teaching-sim")
         self.assertNotEqual(data["provenance"]["kind"], "real-af2")
         self.assertGreaterEqual(len(data["frames"]), 1)
@@ -143,7 +150,7 @@ class TestBackendAPI(unittest.TestCase):
             def __exit__(self, exc_type, exc, tb):
                 return False
 
-            def read(self):
+            def read(self, size=-1):
                 return b"HEADER    TEST\nATOM      1  CA  ALA A   1       0.000   0.000   0.000  1.00 90.00           C\nEND\n"
 
         with patch("backend.app.urlopen", return_value=FakeRcsbResponse()):
@@ -151,6 +158,28 @@ class TestBackendAPI(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn("ATOM", response.text)
         self.assertEqual(response.headers["content-type"].split(";")[0], "chemical/x-pdb")
+
+    def test_reference_pdb_proxy_enforces_size_limit(self):
+        class OversizedRcsbResponse:
+            headers = {"Content-Length": "999999"}
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc, tb):
+                return False
+
+            def read(self, size=-1):
+                return b""
+
+        with (
+            patch("backend.app.REFERENCE_PDB_CACHE", {}),
+            patch("backend.app.REFERENCE_PDB_MAX_BYTES", 16),
+            patch("backend.app.urlopen", return_value=OversizedRcsbResponse()),
+        ):
+            response = self.client.get("/api/reference/pdb/4ins")
+        self.assertEqual(response.status_code, 413)
+        self.assertIn("size limit", response.json()["message"])
 
     def test_job_logs_cancel_and_report(self):
         response = self.client.post("/api/predict/jobs", json={"sequence": "MGEELFTG"})
@@ -173,15 +202,28 @@ class TestBackendAPI(unittest.TestCase):
         result = self.client.get(f"/api/predict/jobs/{job_id}/result")
         self.assertEqual(result.status_code, 200)
         self.assertIn("pdb", result.json()["result"])
+        self.assertEqual(result.json()["result"]["prediction_kind"], "teaching-sim")
         self.assertEqual(result.json()["result"]["provenance"]["kind"], "teaching-sim")
 
         report = self.client.get(f"/api/predict/jobs/{job_id}/report")
         self.assertEqual(report.status_code, 200)
+        self.assertEqual(report.json()["report"]["prediction_kind"], "teaching-sim")
         self.assertEqual(report.json()["report"]["provenance"]["kind"], "teaching-sim")
 
         manifest = self.client.get(f"/api/predict/jobs/{job_id}/manifest")
         self.assertEqual(manifest.status_code, 200)
         manifest_data = manifest.json()["manifest"]
+        self.assertEqual(manifest_data["prediction_kind"], "teaching-sim")
+        run_dir = Path(manifest_data["run_dir"])
+        self.assertTrue((run_dir / "manifest.json").exists())
+        self.assertTrue((run_dir / "input.json").exists())
+        self.assertTrue((run_dir / "params.json").exists())
+        self.assertTrue((run_dir / "result.json").exists())
+        self.assertTrue((run_dir / "provenance.json").exists())
+        self.assertTrue((run_dir / "confidence.json").exists())
+        self.assertTrue((run_dir / "structure.pdb").exists())
+        disk_manifest = json.loads((run_dir / "manifest.json").read_text(encoding="utf-8"))
+        self.assertEqual(disk_manifest["prediction_kind"], "teaching-sim")
         self.assertEqual(manifest_data["frame_count"], 1)
         self.assertEqual(manifest_data["frames"][0]["index"], 0)
         self.assertTrue(manifest_data["frames"][0]["has_pdb"])

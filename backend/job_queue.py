@@ -15,8 +15,10 @@ from backend.adapters import _read_pae, predict_with_engine
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 CACHE_DIR = PROJECT_ROOT / "prediction-cache"
 JOBS_DIR = CACHE_DIR / "jobs"
+JOB_RUNS_DIR = CACHE_DIR / "runs" / "jobs"
 CACHE_DIR.mkdir(exist_ok=True)
 JOBS_DIR.mkdir(parents=True, exist_ok=True)
+JOB_RUNS_DIR.mkdir(parents=True, exist_ok=True)
 
 _jobs: dict[str, dict[str, Any]] = {}
 _cancel_flags: dict[str, threading.Event] = {}
@@ -57,6 +59,62 @@ def _persist(job: dict[str, Any]) -> None:
     if isinstance(payload.get("result"), dict):
         payload["result"] = _compact_result(payload["result"])
     path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+
+
+def _job_run_dir(job_id: str) -> Path:
+    path = JOB_RUNS_DIR / job_id
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
+def _write_json(path: Path, payload: dict[str, Any]) -> None:
+    path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+
+
+def _write_job_files(job: dict[str, Any], result: dict[str, Any] | None = None) -> None:
+    run_dir = _job_run_dir(str(job["id"]))
+    _write_json(
+        run_dir / "input.json",
+        {
+            "job_id": job.get("id"),
+            "sequence": job.get("sequence"),
+            "engine": job.get("engine"),
+            "created_at": job.get("created_at"),
+        },
+    )
+    _write_json(run_dir / "params.json", {"options": job.get("options") or {}, "cache_key": job.get("cache_key")})
+    (run_dir / "model.log").write_text("\n".join(job.get("logs") or []), encoding="utf-8")
+    if not result:
+        _write_json(run_dir / "manifest.json", {"job_id": job.get("id"), "status": job.get("status"), "files": ["input.json", "params.json", "model.log"]})
+        return
+    compact = _compact_result(result)
+    _write_json(run_dir / "result.json", compact)
+    _write_json(run_dir / "provenance.json", result.get("provenance") or {})
+    _write_json(
+        run_dir / "confidence.json",
+        {
+            "plddt": result.get("plddt") or [],
+            "pae": result.get("pae"),
+            "prediction_kind": result.get("prediction_kind"),
+            "scientific_validity": result.get("scientific_validity"),
+        },
+    )
+    if isinstance(result.get("pdb"), str) and result["pdb"]:
+        (run_dir / "structure.pdb").write_text(result["pdb"], encoding="utf-8")
+    files = sorted(path.name for path in run_dir.iterdir() if path.is_file())
+    _write_json(
+        run_dir / "manifest.json",
+        {
+            "job_id": job.get("id"),
+            "status": job.get("status"),
+            "sequence": job.get("sequence"),
+            "engine": job.get("engine"),
+            "prediction_kind": result.get("prediction_kind"),
+            "scientific_validity": result.get("scientific_validity"),
+            "cache_key": job.get("cache_key"),
+            "files": files,
+        },
+    )
 
 
 def reload_persisted_jobs() -> int:
@@ -112,6 +170,25 @@ def _public(job: dict[str, Any]) -> dict[str, Any]:
     return public
 
 
+def _with_provenance_aliases(result: dict[str, Any]) -> dict[str, Any]:
+    provenance = result.get("provenance")
+    if not isinstance(provenance, dict):
+        return result
+    aliases = {
+        "engine": provenance.get("engine"),
+        "prediction_kind": provenance.get("kind"),
+        "prediction_label": provenance.get("label"),
+        "scientific_validity": provenance.get("scientific_validity"),
+        "explanation": provenance.get("explanation"),
+        "model_version": provenance.get("model_version"),
+        "limitations": provenance.get("disclaimers"),
+    }
+    for key, value in aliases.items():
+        if value is not None:
+            result.setdefault(key, value)
+    return result
+
+
 def load_cached_prediction(sequence: str, engine: str, options: dict[str, Any] | None = None) -> dict[str, Any] | None:
     path = cache_path(sequence, engine, options)
     if not path.exists():
@@ -130,7 +207,7 @@ def load_cached_prediction(sequence: str, engine: str, options: dict[str, Any] |
                 path.write_text(json.dumps(data), encoding="utf-8")
     data["meta"]["cached"] = True
     data["cache_key"] = path.stem
-    return data
+    return _with_provenance_aliases(data)
 
 
 def save_cached_prediction(sequence: str, engine: str, result: dict[str, Any], options: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -165,6 +242,7 @@ def create_prediction_job(sequence: str, engine: str, options: dict[str, Any] | 
         _jobs[job_id] = job
         _cancel_flags[job_id] = flag
         _persist(job)
+        _write_job_files(job)
     threading.Thread(target=_run_job, args=(job_id,), daemon=True).start()
     return _public(job)
 
@@ -212,6 +290,7 @@ def _run_job(job_id: str) -> None:
                 _append_log(job, log_line)
             job["updated_at"] = _now()
             _persist(job)
+            _write_job_files(job, result if job.get("status") == "succeeded" else None)
     except InterruptedError as exc:
         with _lock:
             job = _jobs[job_id]
@@ -220,6 +299,7 @@ def _run_job(job_id: str) -> None:
             job["updated_at"] = _now()
             _append_log(job, "Job cancelled.")
             _persist(job)
+            _write_job_files(job)
     except Exception as exc:  # noqa: BLE001
         with _lock:
             job = _jobs[job_id]
@@ -228,6 +308,7 @@ def _run_job(job_id: str) -> None:
             job["updated_at"] = _now()
             _append_log(job, f"Job failed: {exc}")
             _persist(job)
+            _write_job_files(job)
 
 
 def cancel_job(job_id: str) -> dict[str, Any] | None:
@@ -271,7 +352,7 @@ def get_job_result(job_id: str) -> dict[str, Any] | None:
         job = _jobs.get(job_id)
         if not job or not isinstance(job.get("result"), dict):
             return None
-        result = deepcopy(job["result"])
+        result = _with_provenance_aliases(deepcopy(job["result"]))
         if result.get("pdb"):
             return result
         cached = load_cached_prediction(str(job.get("sequence", "")), str(job.get("engine", "")), job.get("options") if isinstance(job.get("options"), dict) else {})
@@ -287,9 +368,12 @@ def get_job_report(job_id: str) -> dict[str, Any] | None:
         hydrated = load_cached_prediction(str(job.get("sequence", "")), str(job.get("engine", "")), job.get("options") if isinstance(job.get("options"), dict) else {}) or result
         return {
             "job": _public(job),
+            "prediction_kind": (hydrated.get("provenance") or {}).get("kind"),
+            "prediction_label": (hydrated.get("provenance") or {}).get("label"),
             "provenance": hydrated.get("provenance"),
             "meta": hydrated.get("meta"),
             "cache_key": job.get("cache_key"),
+            "run_dir": str(_job_run_dir(str(job["id"]))),
             "artifact_summary": {
                 "frame_count": len(hydrated.get("frames", []) or []),
                 "has_pdb": bool(hydrated.get("pdb")),
@@ -348,6 +432,9 @@ def get_job_manifest(job_id: str) -> dict[str, Any] | None:
         return {
             "job": _public(job),
             "cache_key": job.get("cache_key"),
+            "run_dir": str(_job_run_dir(str(job["id"]))),
+            "prediction_kind": (hydrated.get("provenance") or {}).get("kind"),
+            "prediction_label": (hydrated.get("provenance") or {}).get("label"),
             "provenance": hydrated.get("provenance"),
             "meta": hydrated.get("meta"),
             "ranking": hydrated.get("ranking"),

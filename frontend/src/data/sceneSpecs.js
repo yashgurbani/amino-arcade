@@ -14,6 +14,10 @@ export const sceneSpecs = [
     camera: { mode: "svg-projection", position: [0, 0, 6], target: [0, 0, 0] },
     annotations: ["Raw covariance can be dominated by indirect paths.", "The precision view approximates direct coupling."],
     references: { paper: "Fig. 1 and architecture overview", supplement: "Input embeddings and Evoformer inputs", companion: "§2.1-2.4" },
+    tensorShapes: ["MSA: Nseq x Nres", "pair covariance: Nres x Nres", "direct coupling: Nres x Nres"],
+    prerequisites: ["protein sequence", "MSA columns", "covariance"],
+    misconceptions: ["raw covariance is not the same as direct physical contact"],
+    visualTask: "Select two MSA columns and compare raw covariance with direct coupling.",
   },
   {
     id: "triangle",
@@ -34,6 +38,10 @@ export const sceneSpecs = [
     camera: { mode: "svg-projection", position: [0, 0, 6], target: [0, 0, 0] },
     annotations: ["A pairwise table must be globally consistent.", "Triangle updates propagate constraints through residue triples."],
     references: { paper: "p. 586 pair representation", supplement: "§1.6 Evoformer blocks", companion: "§3" },
+    tensorShapes: ["z: Nres x Nres x cz", "triangle path: i-k-j"],
+    prerequisites: ["pair representation", "distance/contact map"],
+    misconceptions: ["triangle updates are learned feature propagation, not a hard triangle solver"],
+    visualTask: "Adjust one pair edge and watch which triangle paths become inconsistent.",
   },
   {
     id: "ipa",
@@ -55,6 +63,10 @@ export const sceneSpecs = [
     camera: { mode: "svg-projection", position: [0, 0, 6], target: [0, 0, 0] },
     annotations: ["Global transforms preserve distances.", "The relative pose controls the structural signal."],
     references: { paper: "Fig. 3 structure module", supplement: "Algorithm 22", companion: "§4" },
+    tensorShapes: ["rigid frames: Nres x SE(3)", "query/key points: Nres x Npoints x 3"],
+    prerequisites: ["local coordinate frame", "rotation/translation invariance"],
+    misconceptions: ["invariant attention does not need a privileged global protein orientation"],
+    visualTask: "Move the whole structure and verify the local-frame attention distance remains unchanged.",
   },
   {
     id: "fape",
@@ -74,6 +86,10 @@ export const sceneSpecs = [
     camera: { mode: "svg-projection", position: [0, 0, 6], target: [0, 0, 0] },
     annotations: ["Distance agreement is not enough.", "Local frames encode handedness."],
     references: { paper: "p. 587 confidence and structure module", supplement: "§1.9.2", companion: "§5" },
+    tensorShapes: ["frames: Nres x SE(3)", "atom positions: Natoms x 3"],
+    prerequisites: ["local frames", "chirality", "distance matrix"],
+    misconceptions: ["matching pairwise distances alone can still permit mirror folds"],
+    visualTask: "Mirror the predicted chain and compare distance agreement with FAPE-like local error.",
   },
   {
     id: "recycling",
@@ -94,6 +110,10 @@ export const sceneSpecs = [
     camera: { mode: "svg-projection", position: [0, 0, 6], target: [0, 0, 0] },
     annotations: ["The trajectory is a representation iteration.", "Late convergence is a useful hard-target signal."],
     references: { paper: "p. 585 iterative refinement", supplement: "Algorithm 2", companion: "§6" },
+    tensorShapes: ["recycled msa: Nseq x Nres x cm", "recycled pair: Nres x Nres x cz", "coordinates: Nres x 3"],
+    prerequisites: ["representation refinement", "confidence estimates"],
+    misconceptions: ["recycling is not a physical folding movie"],
+    visualTask: "Scrub recycle frames and compare coordinate movement with confidence changes.",
   },
   {
     id: "results",
@@ -114,6 +134,10 @@ export const sceneSpecs = [
     camera: { mode: "svg-projection", position: [0, 0, 8], target: [0, 0, 0] },
     annotations: ["Every result must state provenance.", "Confidence is local reliability, not thermodynamics."],
     references: { paper: "Methods and confidence outputs", supplement: "Algorithms 1-32", companion: "§8-9" },
+    tensorShapes: ["pLDDT: Nres", "PAE: Nres x Nres", "frames: Nframes x Nres x 3"],
+    prerequisites: ["pLDDT bands", "PAE domain uncertainty", "provenance"],
+    misconceptions: ["pLDDT is not free energy and PAE is not an ensemble distribution"],
+    visualTask: "Inspect provenance, pLDDT, and PAE before deciding what the result can support.",
   },
 ];
 

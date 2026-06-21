@@ -1,8 +1,8 @@
 # SPEC — FoldYourProtein: a scientifically honest AlphaFold2 game companion
 
-Status: design spec for the next major version (v3). Supersedes the "next steps" framing in `HANDOFF_CLAUDE_CODE.md` where noted.
+Status: design spec for the next major version (v3). Supersedes the "next steps" framing in `docs/handoffs/HANDOFF_CLAUDE_CODE.md` where noted.
 Audience: the developer/agent who builds this, and the physicist-artist who owns the product.
-Companion documents: `IMPLEMENTATION_PLAN.md` (how + when), `PEDAGOGICAL_HANDOFF.md` (why + what to teach).
+Companion documents: `IMPLEMENTATION_PLAN.md` (how + when), `docs/handoffs/PEDAGOGICAL_HANDOFF.md` (why + what to teach).
 
 ---
 
@@ -222,7 +222,7 @@ v3 is done when:
 | Teaching trajectory still "feels" like a fold and misleads | Permanent non-dismissible provenance label; "what this is / isn't" card pinned in the arena; score formula always inspectable. |
 | LocalColabFold stays blocked on this host | Ship stubbed-binary tests + cached real outputs so the path is provably correct even when the host can't run it; document all three unblock routes. |
 | Concept-math creep makes the math wrong | Every new function gets a test asserting the *property* (invariance, monotonicity, realizability), not just a value. |
-| Scope sprawl from "creative options" | Creative ideas live in `PEDAGOGICAL_HANDOFF.md` as a backlog, gated behind the v3 acceptance criteria. |
+| Scope sprawl from "creative options" | Creative ideas live in `docs/handoffs/PEDAGOGICAL_HANDOFF.md` as a backlog, gated behind the v3 acceptance criteria. |
 
 ---
 
@@ -233,4 +233,4 @@ v3 is done when:
 - minAlphaFold2: https://github.com/ChrisHayduk/minAlphaFold2 (architecture-faithful teaching reimplementation).
 - Mol\* viewer: https://molstar.org — Sehnal, D. et al. *Nucleic Acids Research* 49, W431–W437 (2021).
 - ESMFold: Lin, Z. et al. "Evolutionary-scale prediction of atomic-level protein structure with a language model." *Science* 379, 1123–1130 (2023).
-- Repo internal: `PRODUCT.md`, `DESIGN.md`, `HANDOFF_CLAUDE_CODE.md`, `frontend/src/lib/conceptMath.js`, `frontend/src/data/paperGrounding.js`.
+- Repo internal: `PRODUCT.md`, `DESIGN.md`, `docs/handoffs/HANDOFF_CLAUDE_CODE.md`, `frontend/src/lib/conceptMath.js`, `frontend/src/data/paperGrounding.js`.

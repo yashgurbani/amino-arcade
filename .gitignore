@@ -16,6 +16,9 @@ stress_output*.txt
 chrome-smoke-profile*/
 .agents/
 .stitch/
+.release-stage/
+coverage/
+htmlcov/
 
 node_modules/
 frontend/node_modules/

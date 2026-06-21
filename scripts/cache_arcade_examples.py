@@ -24,11 +24,12 @@ DEMO_DIR = ROOT / "frontend" / "public" / "demo-cache"
 
 def _targets() -> list[dict[str, Any]]:
     script = (
-        "import { arcadeTargets } from './frontend/src/data/targets.js'; "
-        "console.log(JSON.stringify(arcadeTargets().map(t=>({"
+        "import { arcadeTargets, libraryTargets } from './frontend/src/data/targets.js'; "
+        "console.log(JSON.stringify([...arcadeTargets(), ...libraryTargets()].map(t=>({"
         "n:t.n,name:t.name,full:t.full,seq:t.seq,pdb:t.pdb,pdbChain:t.pdbChain,"
         "concept:t.concept,msaMode:t.msaMode,expectation:t.expectation,tag:t.tag,"
-        "blurb:t.blurb,predictionScope:t.predictionScope,omittedContext:t.omittedContext"
+        "blurb:t.blurb,learningOutcome:t.learningOutcome,library:t.library,"
+        "predictionScope:t.predictionScope,omittedContext:t.omittedContext"
         "}))))"
     )
     raw = subprocess.check_output(["node", "--input-type=module", "-e", script], cwd=ROOT, text=True)

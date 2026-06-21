@@ -5,11 +5,12 @@ React/Vite frontend for the paper-grounded AlphaFold2 learning companion.
 ## Run
 
 ```powershell
-npm install
+$env:VITE_API_BASE="http://127.0.0.1:8011"
+npm ci
 npm run dev
 ```
 
-The app expects the FastAPI backend at `http://127.0.0.1:8000`, but it also includes a small offline fallback so the shell remains inspectable before the backend starts.
+The app defaults to the FastAPI backend at `http://127.0.0.1:8011`. It also includes bundled demo-cache results so the shell remains inspectable before the backend starts.
 
 ## What It Shows
 
@@ -18,8 +19,8 @@ The app expects the FastAPI backend at `http://127.0.0.1:8000`, but it also incl
 - Invariant Point Attention with SE(3) frame controls.
 - FAPE and chirality through local-frame comparison.
 - Recycling as learned fixed-point refinement.
-- Cached examples and the `/api/predict` backend contract.
+- Cached examples, provenance labels, guardrail decisions, and the `/api/predict` backend contract.
 
 ## Dependency Note
 
-The production target is Mol* plus React Three Fiber for the molecular and conceptual 3D layers. The current implementation uses dependency-free SVG projections because package installation was blocked by a network reset during implementation. The component boundary is isolated in `src/components/Mini3D.jsx` so Mol*/R3F can replace that renderer without changing the app shell or concept math.
+Mol* is the molecular viewer boundary in `src/components/MolPlayfield.jsx`. The concept panels use lightweight React/SVG components for tensor, MSA, contact-map, PAE, local-frame, and recycling explanations. React Three Fiber is not currently installed.

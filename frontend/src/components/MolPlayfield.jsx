@@ -16,13 +16,18 @@ import { st, withTimeout, fallbackPdb } from "../lib/viewer";
 const LENS_COLORS = { coevolution: "#2fd6ff", triangle: "#3dffa8", ipa: "#b06bff", fape: "#ff4fd8", recycling: "#ffb347" };
 
 class MolPlayfield extends Component {
-  constructor(props) { super(props); this.host = null; this.plugin = null; this.roots = new WeakMap(); this.state = { mode: "loading", lensLabel: "" }; this._mounted = false; this._loadSeq = 0; this._contactLineRefs = []; this._trajKey = null; this._trajFailed = false; this._trajModelRef = null; this._trajCount = 0; this._trajTransforms = null; this._initOffset = 0; }
+  constructor(props) { super(props); this.host = null; this.plugin = null; this.roots = new WeakMap(); this.state = { mode: "loading", lensLabel: "" }; this._mounted = false; this._loadSeq = 0; this._contactLineRefs = []; this._clickSub = null; this._trajKey = null; this._trajFailed = false; this._trajModelRef = null; this._trajCount = 0; this._trajTransforms = null; this._initOffset = 0; }
   componentDidMount() { this._mounted = true; this.load({ resetCamera: true }); }
   componentDidUpdate(prev) {
+    // When the app toggles the viewport into/out of fullscreen, the host div
+    // resizes; tell Mol* to resize its canvas to the new box.
+    if (prev.fullscreen !== this.props.fullscreen) {
+      requestAnimationFrame(() => { try { if (this.plugin && this.plugin.handleResize) this.plugin.handleResize(); } catch (e) { void e; } });
+    }
     const frames = this.props.frames;
     const trajCapable = Array.isArray(frames) && frames.length > 1 && !this._trajFailed;
     const lensesChanged = (prev.activeLenses || []).join(",") !== (this.props.activeLenses || []).join(",");
-    const selChanged = (prev.selectedResidues || []).join(",") !== (this.props.selectedResidues || []).join(",");
+    const selChanged = (prev.selectedResidues || []).join(",") !== (this.props.selectedResidues || []).join(",") || JSON.stringify(prev.selectedPae || null) !== JSON.stringify(this.props.selectedPae || null);
     const reflectChanged = prev.reflected !== this.props.reflected;
     if (trajCapable) {
       const key = this.framesKey(frames);
@@ -39,11 +44,11 @@ class MolPlayfield extends Component {
       if (prev.colorMode !== this.props.colorMode) this.applyVisualTheme();
     }
     if (lensesChanged || selChanged || prev.lens !== this.props.lens || prev.lensModel !== this.props.lensModel) this.applyLensAnnotations();
-    if (prev.lensModel !== this.props.lensModel || lensesChanged || prev.lens !== this.props.lens || prev.colorMode !== this.props.colorMode) { this.applyColorTheme(); this.applyResidueOverlay(); }
+    if (prev.lensModel !== this.props.lensModel || lensesChanged || selChanged || prev.lens !== this.props.lens || prev.colorMode !== this.props.colorMode) { this.applyColorTheme(); this.applyResidueOverlay(); }
     if (lensesChanged || prev.defaultSpin !== this.props.defaultSpin) this.applySpin();
-    if (prev.lensModel !== this.props.lensModel || lensesChanged) this.applyContactLines();
+    if (prev.lensModel !== this.props.lensModel || lensesChanged || selChanged) this.applyContactLines();
   }
-  componentWillUnmount() { this._mounted = false; this._loadSeq += 1; try { if (this.plugin && this.plugin.dispose) this.plugin.dispose(); } catch (e) { void e; } this.plugin = null; this._contactLineRefs = []; }
+  componentWillUnmount() { this._mounted = false; this._loadSeq += 1; try { if (this._clickSub?.unsubscribe) this._clickSub.unsubscribe(); } catch (e) { void e; } this._clickSub = null; try { if (this.plugin && this.plugin.dispose) this.plugin.dispose(); } catch (e) { void e; } this.plugin = null; this._contactLineRefs = []; }
   mirrorPdb(text) {
     return String(text || "").split("\n").map((l) => {
       if (l.startsWith("ATOM") || l.startsWith("HETATM")) {
@@ -204,6 +209,11 @@ class MolPlayfield extends Component {
       if (active.includes("ipa") && !groups.length) {
         await paint(this.localFrameSegment(), LENS_COLORS.ipa);
       }
+      const refs = Array.isArray(this.props.selectedPae?.residues) ? this.props.selectedPae.residues : [];
+      const anchor = refs.find((ref) => ref.role === "anchor") || refs[0];
+      const partner = refs.find((ref) => ref.role === "partner") || refs[1];
+      if (anchor) await paint([anchor.resno], "#2fd6ff");
+      if (partner) await paint([partner.resno], "#ffb347");
     } catch (err) {
       console.info("Mol* residue color overlay unavailable", err);
     }
@@ -243,11 +253,11 @@ class MolPlayfield extends Component {
     const active = new Set(this.props.activeLenses || []);
     const structure = this.plugin.managers?.structure?.hierarchy?.current?.structures?.[0]?.cell?.obj?.data;
     if (!structure || !this.plugin.managers?.structure?.measurement?.addDistance) return;
-    const drawLine = async (a, b, hex, size, dash) => {
+    const drawLine = async (a, b, hex, size, dash, customText = "") => {
       const lociA = await this.residueLoci(structure, a);
       const lociB = await this.residueLoci(structure, b);
       const result = await this.plugin.managers.structure.measurement.addDistance(lociA, lociB, {
-        customText: "",
+        customText,
         lineParams: { linesColor: parseInt(hex.slice(1), 16), linesSize: size, dashLength: dash },
         visualParams: { visuals: ["lines"] },
       });
@@ -277,10 +287,48 @@ class MolPlayfield extends Component {
           await drawLine(tri[0], tri[2], "#3dffa8", 0.09, 0.2);
         }
       }
+      const refs = Array.isArray(this.props.selectedPae?.residues) ? this.props.selectedPae.residues : [];
+      const anchor = refs.find((ref) => ref.role === "anchor") || refs[0];
+      const partner = refs.find((ref) => ref.role === "partner") || refs[1];
+      if (anchor && partner && anchor.resno !== partner.resno) {
+        await drawLine(anchor.resno, partner.resno, "#ffb347", 0.08, 0.12, `PAE ${anchor.resno}->${partner.resno}`);
+      }
     } catch (err) {
       console.info("Mol* contact line overlay unavailable", err);
       await this.clearContactLines();
     }
+  }
+
+  async resnoFromLoci(loci) {
+    if (!loci || loci.kind !== "element-loci" || !loci.elements?.length) return null;
+    try {
+      const [{ StructureElement, StructureProperties }, { OrderedSet }] = await Promise.all([
+        import("molstar/lib/mol-model/structure"),
+        import("molstar/lib/mol-data/int"),
+      ]);
+      const entry = loci.elements[0];
+      const elementIndex = OrderedSet.getAt(entry.indices, 0);
+      const element = entry.unit.elements[elementIndex];
+      const loc = StructureElement.Location.create(loci.structure, entry.unit, element);
+      return StructureProperties.residue.label_seq_id(loc) || StructureProperties.residue.auth_seq_id(loc) || null;
+    } catch (err) {
+      console.info("Mol* residue click decoding unavailable", err);
+      return null;
+    }
+  }
+
+  installResidueClickHandler() {
+    if (!this.plugin || this._clickSub) return;
+    const clicks = this.plugin.behaviors?.interaction?.click;
+    if (!clicks?.subscribe) return;
+    this._clickSub = clicks.subscribe(async ({ current }) => {
+      const resno = await this.resnoFromLoci(current?.loci);
+      if (resno) {
+        if (this.props.onResidueClick) this.props.onResidueClick(resno);
+      } else if (this.props.onClearSelection) {
+        this.props.onClearSelection();
+      }
+    });
   }
 
   lensResidues() {
@@ -365,7 +413,9 @@ class MolPlayfield extends Component {
               ...(defaultSpec.config || []),
               [PluginConfig.Viewport.ShowControls, false],
               [PluginConfig.Viewport.ShowExpand, false],
-              [PluginConfig.Viewport.ShowToggleFullscreen, true],
+              // App owns fullscreen (CSS section + handleResize); Mol*'s built-in
+              // browser-fullscreen toggle was unreliable and visually off.
+              [PluginConfig.Viewport.ShowToggleFullscreen, false],
               [PluginConfig.Viewport.ShowXR, false],
               [PluginConfig.Viewport.ShowSelectionMode, false],
               [PluginConfig.Viewport.ShowAnimation, false],
@@ -377,6 +427,7 @@ class MolPlayfield extends Component {
             root.render(component);
           },
         }), 12000, "Mol* plugin UI");
+        this.installResidueClickHandler();
       }
       if (!isCurrent()) return;
       await this.plugin.clear();
@@ -396,6 +447,7 @@ class MolPlayfield extends Component {
       }), 12000, "Mol* structure preset");
       await this.applyDarkCanvas();
       await this.applyVisualTheme();
+      await this.applyResidueOverlay();
       await this.applyLensAnnotations();
       await this.applyContactLines();
       await this.applySpin();
@@ -459,6 +511,7 @@ class MolPlayfield extends Component {
       }
       await this.applyDarkCanvas();
       await this.applyVisualTheme();
+      await this.applyResidueOverlay();
       await this.applyLensAnnotations();
       await this.applyContactLines();
       await this.applySpin();
@@ -488,9 +541,19 @@ class MolPlayfield extends Component {
 
   render() {
     const colorLegend = residueColorLegend(this.props.lensModel?.residueColors);
+    const refs = Array.isArray(this.props.selectedPae?.residues) ? this.props.selectedPae.residues : [];
+    const anchor = refs.find((ref) => ref.role === "anchor") || refs[0];
+    const partner = refs.find((ref) => ref.role === "partner") || refs[1];
+    const selectionCaption = anchor && partner && Number.isFinite(this.props.selectedPae?.value)
+      ? `PAE(${anchor.resno},${partner.resno}): residue ${partner.resno} error when aligned on ${anchor.resno} = ${Number(this.props.selectedPae.value).toFixed(2)} A`
+      : anchor ? `Selected residue ${anchor.chain}:${anchor.resno}` : "";
     return h("div", { "data-testid": "mol-playfield", "data-color-mode": this.props.colorMode || "plddt", style: st("position:absolute;inset:0;background:radial-gradient(circle at 48% 44%,#101a30,#050812 62%,#03040a);transition:background .25s ease;") },
       h("div", { ref: (el) => (this.host = el), className: "molstar-dark-host", style: st(`position:absolute;inset:0;background:#050812;visibility:${this.state.mode === "molstar" ? "visible" : "hidden"};`) }),
       this.state.lensLabel ? h("div", { "data-testid": "mol-lens-annotation", style: st("position:absolute;left:50%;bottom:10px;transform:translateX(-50%);z-index:5;max-width:80%;padding:3px 10px;border-radius:6px;background:rgba(10,6,18,.55);color:#9fb0c8;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:.5px;white-space:nowrap;pointer-events:none;") }, this.state.lensLabel) : null,
+      selectionCaption ? h("div", { "data-testid": "mol-pae-selection-caption", style: st("position:absolute;left:12px;top:12px;z-index:5;max-width:320px;padding:7px 10px;border-radius:8px;background:rgba(10,6,18,.72);border:1px solid rgba(255,179,71,.45);color:#d9d2ef;font-family:'JetBrains Mono',monospace;font-size:9px;line-height:1.35;pointer-events:none;") },
+        anchor ? h("span", { style: st("color:#2fd6ff;font-weight:800;") }, `anchor ${anchor.chain}:${anchor.resno}`) : null,
+        partner ? h("span", null, " -> ", h("span", { style: st("color:#ffb347;font-weight:800;") }, `partner ${partner.chain}:${partner.resno}`), " · ") : null,
+        h("span", null, selectionCaption)) : null,
       colorLegend ? h("div", { "data-testid": "mol-residue-color-legend", style: st("position:absolute;right:12px;bottom:12px;z-index:5;width:220px;padding:8px 10px;border-radius:8px;background:rgba(10,6,18,.82);border:1px solid rgba(255,255,255,.16);color:#d9d2ef;font-family:'JetBrains Mono',monospace;font-size:9px;pointer-events:none;") },
         h("div", { style: st("margin-bottom:6px;letter-spacing:.5px;") }, colorLegend.title),
         h("div", { style: st(`height:7px;border-radius:4px;background:linear-gradient(90deg,${colorLegend.lowColor},${colorLegend.highColor});`) }),

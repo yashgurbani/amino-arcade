@@ -6,7 +6,7 @@ into honest, inspectable diagnostics: rigid-body superposition, RMSD, per-residu
 displacement, Cα contact maps and their deltas, a Cα-frame FAPE approximation,
 backbone geometry sanity, and pLDDT statistics.
 
-Honesty boundaries (see HANDOFF_PEDAGOGY_AND_LENSES.md, Part 7):
+Honesty boundaries (see docs/handoffs/HANDOFF_PEDAGOGY_AND_LENSES.md, Part 7):
   * Nothing here invents motion or interpolates frames. Every number is computed
     from coordinates LocalColabFold actually produced.
   * "FAPE" here is a Cα-only approximation to a reference structure, not the

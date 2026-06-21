@@ -49,7 +49,7 @@ function buildSteps(defs, glossary, equationDeck) {
   ];
 }
 
-export default function TourOverlay({ open, onClose, conceptDefs, glossary, equationDeck, colors, onFocusLens }) {
+export default function TourOverlay({ open, onClose, conceptDefs, glossary, equationDeck, colors, onFocusLens, onOpenBasics }) {
   const [i, setI] = useState(0);
   const [userBig, setUserBig] = useState(null); // null = follow step default
   const steps = buildSteps(conceptDefs, glossary || [], equationDeck || []);
@@ -74,6 +74,7 @@ export default function TourOverlay({ open, onClose, conceptDefs, glossary, equa
         h("span", { style: { fontFamily: mono, fontSize: 9, fontWeight: 800, letterSpacing: "1.4px", color: s.color, padding: "3px 8px", borderRadius: 6, border: `1px solid ${s.color}`, background: `${s.color}18` } }, s.tag),
         h("span", { style: { fontFamily: mono, fontSize: 10, color: "#7a6aa8" } }, `STEP ${idx + 1} / ${steps.length}`)),
       h("div", { style: { display: "flex", alignItems: "center", gap: 6 } },
+        onOpenBasics ? h("button", { key: "basics", onClick: onOpenBasics, title: "Open Protein Basics", style: { height: 25, padding: "0 8px", borderRadius: 7, border: "1px solid #3dffa8", background: "rgba(61,255,168,.10)", color: "#3dffa8", fontFamily: mono, fontSize: 8.5, fontWeight: 800, letterSpacing: ".8px", cursor: "pointer" } }, "BASICS") : null,
         h("button", { key: "big", onClick: () => setUserBig(!big), title: big ? "Shrink to side panel (refocus the protein)" : "Full-screen slide (for presenting)", style: { background: "none", border: "none", color: "#9d8fd6", fontSize: 15, cursor: "pointer", lineHeight: 1 } }, big ? "⤢" : "⛶"),
         h("button", { key: "x", onClick: onClose, "aria-label": "Close tour", style: { background: "none", border: "none", color: "#9d8fd6", fontSize: 18, cursor: "pointer", lineHeight: 1 } }, "✕"))),
     s.focus ? h("div", { key: "cue", style: { fontFamily: mono, fontSize: 8.5, color: s.color, marginBottom: 8, opacity: 0.9 } }, "◉ lens lit on the structure behind →") : null,

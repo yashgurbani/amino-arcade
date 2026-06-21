@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "test": "node --test src/lib/conceptMath.test.mjs src/lib/foldingGameMath.test.mjs src/lib/superpose.test.mjs src/lib/contactMap.test.mjs src/lib/contactDeltaView.test.mjs src/lib/recycleMetrics.test.mjs src/lib/lensModel.test.mjs src/lib/lensColors.test.mjs src/lib/localFrameSegment.test.mjs src/lib/molstarTrackball.test.mjs src/lib/pdbChain.test.mjs src/lib/sequence.test.mjs src/lib/exportMetadata.test.mjs src/lib/ensembleMetrics.test.mjs src/data/targets.test.mjs",
+    "test": "node --test src/lib/conceptMath.test.mjs src/lib/foldingGameMath.test.mjs src/lib/superpose.test.mjs src/lib/contactMap.test.mjs src/lib/contactDeltaView.test.mjs src/lib/recycleMetrics.test.mjs src/lib/lensModel.test.mjs src/lib/lensColors.test.mjs src/lib/lensMath.scene.test.mjs src/lib/localFrameSegment.test.mjs src/lib/molstarTrackball.test.mjs src/lib/pdbChain.test.mjs src/lib/residueSelection.test.mjs src/lib/sequence.test.mjs src/lib/exportMetadata.test.mjs src/lib/ensembleMetrics.test.mjs src/data/targets.test.mjs",
     "preview": "vite preview",
     "smoke": "playwright test"
   },

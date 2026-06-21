@@ -299,9 +299,26 @@ def _trajectory(
         final_pdb = final.get("pdb")
         plddt = final.get("plddt", [])
         pae = meta.get("pae")
+    parameters = meta.get("options") if isinstance(meta.get("options"), dict) else {}
+    provenance_metadata = provenance.get("metadata") if isinstance(provenance.get("metadata"), dict) else {}
+    if not parameters:
+        parameters = {
+            key: value
+            for key, value in provenance_metadata.items()
+            if key in {"num_recycle", "num_models", "msa_mode", "templates", "msa_depth"}
+        }
+    database_mode = provenance_metadata.get("msa_mode") or provenance.get("database_mode")
     result = {
         "status": "success",
         "engine": engine,
+        "prediction_kind": provenance["kind"],
+        "prediction_label": provenance["label"],
+        "scientific_validity": provenance["scientific_validity"],
+        "explanation": provenance["explanation"],
+        "model_version": provenance["model_version"],
+        "database_mode": database_mode,
+        "parameters": parameters,
+        "limitations": provenance["disclaimers"],
         "sequence": sequence,
         "provenance": provenance,
         "frames": frames,
@@ -321,7 +338,7 @@ def _trajectory(
     # Derived, honest per-frame diagnostics computed from the real recycle
     # coordinates (RMSD, contact deltas, Ca-FAPE, geometry, pLDDT stats). Kept in
     # a separate `analysis` object so the legacy `frames`/`observables` payload is
-    # untouched. See backend/analysis.py and HANDOFF_PEDAGOGY_AND_LENSES.md.
+    # untouched. See backend/analysis.py and docs/handoffs/HANDOFF_PEDAGOGY_AND_LENSES.md.
     try:
         result["analysis"] = build_analysis(frames, reference="final")
         if models:

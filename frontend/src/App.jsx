@@ -1,33 +1,33 @@
 import { Component, createElement as h } from "react";
 import "molstar/build/viewer/molstar.css";
 import "./App.css";
-import { arcadeTargets as curatedArcadeTargets } from "./data/targets";
+import { arcadeTargets as curatedArcadeTargets, libraryTargets } from "./data/targets";
 import {
   cancelPredictionJob,
-  createPredictionJob,
   fetchCapabilities,
-  fetchPredictionJob,
   fetchPredictionJobs,
-  fetchPredictionLogs,
-  fetchPredictionReport,
-  fetchPredictionResult,
   fetchPhysicsStatus,
-  fetchDemoResultForSequence,
-  isDemoCacheEnabled,
   runLocalRelaxation,
 } from "./lib/api";
 import { computeLensModel, lensContactLines, lensMetrics as computeLensMetrics } from "./lib/lensModel";
+import { coevData as buildCoevData, fapeData as buildFapeData, fapeTarget, ipaData as buildIpaData, matInv as invertMatrix, recycleShape, triangleMaxViolation } from "./lib/lensMath";
 import { convergenceSeries, isLowConfidence } from "./lib/recycleMetrics";
 import { computeEnsembleMetrics } from "./lib/ensembleMetrics";
 import { cleanSequence, maxOf, meanOf, minOf, parsePdbAtoms, pdbToCif, slug } from "./lib/sequence";
 import { truthLabels } from "./lib/truthLabels";
 import { withCifExportWatermark, withJsonExportWatermark, withPdbExportWatermark } from "./lib/exportMetadata";
 import { st } from "./lib/viewer";
+import { nextViewerSelection, paeSelection, selectionResidueNumbers } from "./lib/residueSelection";
+import { runPredictionJob } from "./state/predictionJobController";
 import MolPlayfield from "./components/MolPlayfield";
+import ArcadeHeader from "./components/ArcadeHeader";
 import ContactDeltaMap from "./components/ContactDeltaMap";
 import EnsemblePanel from "./components/EnsemblePanel";
 import LensRail from "./components/LensRail";
+import ProteinBasics from "./components/ProteinBasics";
+import LibraryPage from "./components/LibraryPage";
 import TourOverlay from "./components/TourOverlay";
+import { conceptDefs as buildConceptDefs } from "./data/concepts";
 import { glossary, equationDeck } from "./data/paperGrounding";
 import PaePanel from "./components/PaePanel";
 import PhysicsModePanel from "./components/PhysicsModePanel";
@@ -44,19 +44,13 @@ import ResultInspector from "./components/ResultInspector";
 //     FAPE / recycling), the transparent score popup and backend-info popup
 //   - the stylized SVG ribbon used as a teaching preview before a real fold
 //
-// What is wired to the backend (per CLAUDECODE_BACKEND_HANDOFF.md):
+// What is wired to the backend (per docs/handoffs/CLAUDECODE_BACKEND_HANDOFF.md):
 //   - a single Mol* playfield (no STRUCTURE/ARCADE toggle) that loads real
 //     LocalColabFold recycle PDB frames once a fold completes
 //   - the six named arcade proteins are real, foldable amino-acid sequences
 //   - live readouts (pLDDT / contact / score / trajectory) derive from the
 //     active real frame when one exists, otherwise from the teaching model
 // ---------------------------------------------------------------------------
-
-// Inline CSS string -> React style object (lets us reuse the prototype's
-// exact style strings verbatim instead of re-typing them as objects).
-function wait(ms) {
-  return new Promise((resolve) => window.setTimeout(resolve, ms));
-}
 
 class App extends Component {
   C = {
@@ -77,8 +71,8 @@ class App extends Component {
     coev: { view: "cov", guess: null }, tri: this.initTri(), ipa: { thetaG: 0, naive: false }, fape: { reflected: false, naive: false }, rec: this.initRec(),
     // backend
     engine: "localcolabfold", capabilities: [], result: null, resultSeq: null,
-    job: null, loading: false, error: "", archiveJobs: [], report: null, realIndex: 0, realPlaying: false, selectedModel: 0, runLog: [], jobPopupOpen: false, pendingSeq: "", lastRun: null,
-    inspectorTab: "result", tourOpen: false, molFull: false, physicsStatus: null, physicsRunning: false, physicsResult: null, physicsError: "",
+    job: null, loading: false, error: "", guardrail: null, archiveJobs: [], report: null, realIndex: 0, realPlaying: false, selectedModel: 0, runLog: [], jobPopupOpen: false, pendingSeq: "", lastRun: null,
+    inspectorTab: "result", tourOpen: false, molFull: false, libraryOpen: false, basicsOpen: false, physicsStatus: null, physicsRunning: false, physicsResult: null, physicsError: "",
   };
 
   componentDidMount() {
@@ -95,10 +89,16 @@ class App extends Component {
       .then((physicsStatus) => this.setState({ physicsStatus }))
       .catch((err) => this.setState({ physicsError: err.message || "Physics status unavailable." }));
     this.refreshArchive();
+    window.addEventListener("keydown", this.handleKeyDown);
   }
   componentWillUnmount() {
     clearInterval(this._spin); clearInterval(this._triT); clearInterval(this._recT); clearInterval(this._playT); clearInterval(this._foldT);
+    window.removeEventListener("keydown", this.handleKeyDown);
   }
+
+  handleKeyDown = (event) => {
+    if (event.key === "Escape" && this.state.selectedPae) this.setState({ selectedPae: null, previewPae: null });
+  };
 
   // ---------- real backend ----------
   resultModels() {
@@ -429,6 +429,7 @@ class App extends Component {
     this.setState((s) => ({
       loading: true,
       error: "",
+      guardrail: null,
       result: null,
       resultSeq: null,
       pendingSeq: cleaned,
@@ -445,59 +446,23 @@ class App extends Component {
     // gentle progress animation while the (possibly multi-minute) job runs
     this._foldT = setInterval(() => { this.setState((s) => ({ custom: { ...s.custom, t: Math.min(0.95, s.custom.t + 0.01), elapsed: s.custom.elapsed + 0.25 } })); }, 250);
     try {
-      if (isDemoCacheEnabled()) {
-        this.addRunLog(fiy, "DEMO", "loading bundled LocalColabFold result", this.C.cyan);
-        try {
-          const res = await fetchDemoResultForSequence(cleaned);
-          clearInterval(this._foldT);
-          const demoJob = { id: `demo-${res.meta?.target?.n || "cache"}`, status: "succeeded", engine: res.engine || "localcolabfold", options: res.meta?.options || runOptions, cache_key: res.cache_key };
-          this.setState({ result: res, resultSeq: cleaned, pendingSeq: "", report: null, realIndex: 0, realPlaying: false, selectedModel: 0, loading: false, jobPopupOpen: false, job: demoJob }, () => {
-            if ((res.frames || []).length > 1) this.playReal(true);
-          });
-          this.addRunLog(fiy, "✓", `demo fold loaded · ${res.frames?.length || 0} recycle frames`, this.C.green);
-          if (fiy) this.setState((s) => ({ custom: { ...s.custom, running: false, done: true, t: 1 } }));
-          return;
-        } catch (demoErr) {
-          this.addRunLog(fiy, "DEMO", `${demoErr.message}; running backend instead`, this.C.amber);
-        }
-      }
-      const created = await createPredictionJob(cleaned, engine, runOptions);
-      this.setState({ job: created });
-      this.addRunLog(fiy, "JOB", `created ${created.id} · ${created.status}`, this.C.cyan);
-      let current = created;
-      const maxPolls = engine === "localcolabfold" ? 2000 : 160;
-      let lastLogLen = 0;
-      for (let p = 0; p < maxPolls; p += 1) {
-        await wait(engine === "localcolabfold" ? 1200 : 450);
-        current = await fetchPredictionJob(created.id);
-        this.setState({ job: current });
-        if (p === 0 || p % 10 === 0 || ["succeeded", "failed", "cancelled"].includes(current.status)) this.addRunLog(fiy, "STAT", `${engine} · ${String(current.status).toUpperCase()}`, this.C.mid);
-        try {
-          const ld = await fetchPredictionLogs(created.id);
-          const lines = ld.logs || [];
-          if (lines.length > lastLogLen) {
-            const fresh = lines.slice(lastLogLen);
-            lastLogLen = lines.length;
-            fresh.forEach((x) => this.addRunLog(fiy, "··", String(x), this.C.mid));
-          }
-        } catch { /* ignore log poll errors */ }
-        if (["succeeded", "failed", "cancelled"].includes(current.status)) break;
-      }
-      if (current.status !== "succeeded") throw new Error(current.message || `job ${current.status}`);
-      const [res, rep] = await Promise.all([
-        fetchPredictionResult(created.id),
-        fetchPredictionReport(created.id).catch(() => null),
-      ]);
+      const colorForLog = (kind) => ({ success: this.C.green, warn: this.C.amber, muted: this.C.mid, info: this.C.cyan }[kind] || this.C.mid);
+      const { result: res, report: rep, job: finalJob, demo } = await runPredictionJob({
+        sequence: cleaned,
+        engine,
+        options: runOptions,
+        onJob: (job) => this.setState({ job }),
+        onLog: (tag, message, kind) => this.addRunLog(fiy, tag, message, colorForLog(kind)),
+      });
       clearInterval(this._foldT);
-      this.setState({ result: res, resultSeq: cleaned, pendingSeq: "", report: rep, realIndex: 0, realPlaying: false, selectedModel: 0, loading: false, jobPopupOpen: false }, () => {
+      this.setState({ result: res, resultSeq: cleaned, pendingSeq: "", report: rep, guardrail: res.meta?.guardrail || null, realIndex: 0, realPlaying: false, selectedModel: 0, loading: false, jobPopupOpen: false, job: finalJob }, () => {
         if ((res.frames || []).length > 1) this.playReal(true);
       });
-      this.addRunLog(fiy, "✓", `fold complete · ${res.frames?.length || 0} recycle frames`, this.C.green);
       if (fiy) this.setState((s) => ({ custom: { ...s.custom, running: false, done: true, t: 1 } }));
-      this.refreshArchive();
+      if (!demo) this.refreshArchive();
     } catch (err) {
       clearInterval(this._foldT);
-      this.setState({ error: err.message, loading: false, pendingSeq: "", job: this.state.job ? { ...this.state.job, status: "failed", message: err.message } : null });
+      this.setState({ error: err.message, guardrail: err.guardrail || null, loading: false, pendingSeq: "", job: this.state.job ? { ...this.state.job, status: "failed", message: err.message } : null });
       this.addRunLog(fiy, "!!", `error: ${err.message}`, this.C.danger);
       if (fiy) this.setState((s) => ({ custom: { ...s.custom, running: false } }));
     }
@@ -530,10 +495,7 @@ class App extends Component {
   }
 
   // ---------- math ----------
-  matInv(A) { const n = A.length, M = A.map((r, i) => [...r, ...Array.from({ length: n }, (_, j) => (i === j ? 1 : 0))]);
-    for (let c = 0; c < n; c++) { let p = c; for (let r = c + 1; r < n; r++) if (Math.abs(M[r][c]) > Math.abs(M[p][c])) p = r; [M[c], M[p]] = [M[p], M[c]];
-      const d = M[c][c]; for (let j = 0; j < 2 * n; j++) M[c][j] /= d; for (let r = 0; r < n; r++) if (r !== c) { const f = M[r][c]; for (let j = 0; j < 2 * n; j++) M[r][j] -= f * M[c][j]; } }
-    return M.map((r) => r.slice(n)); }
+  matInv(A) { return invertMatrix(A); }
   divColor(v) { const m = Math.min(1, Math.abs(v)); const hue = v >= 0 ? 170 : 330; const l = (0.18 + 0.55 * m).toFixed(3); const c = (0.01 + 0.18 * m).toFixed(3); return `oklch(${l} ${c} ${hue})`; }
   plddt(v) { if (v > 90) return "#1f6feb"; if (v > 70) return "#25c7d9"; if (v > 50) return "#f4e409"; return "#f28c28"; }
   plddtBand(v) { if (v > 90) return "Very high"; if (v > 70) return "Confident"; if (v > 50) return "Low"; return "Very low"; }
@@ -545,15 +507,7 @@ class App extends Component {
   _css(c) { return `rgb(${c[0] | 0},${c[1] | 0},${c[2] | 0})`; }
 
   // ---------- coevolution ----------
-  coevData() { const n = 6, contacts = [[0, 2], [2, 4], [1, 3], [3, 5]];
-    const J = Array.from({ length: n }, (_, i) => Array.from({ length: n }, (_, j) => (i === j ? 2.2 : 0)));
-    contacts.forEach(([a, b]) => { J[a][b] = J[b][a] = -0.9; });
-    const cov = this.matInv(J);
-    const corr = (M) => M.map((row, i) => row.map((v, j) => (i === j ? 1 : v / Math.sqrt(M[i][i] * M[j][j]))));
-    const corrCov = corr(cov), corrPrec = J.map((row, i) => row.map((v, j) => (i === j ? 1 : -v / Math.sqrt(J[i][i] * J[j][j]))));
-    const isC = (i, j) => contacts.some(([a, b]) => (a === i && b === j) || (a === j && b === i));
-    let trap = null, best = 0; for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) if (!isC(i, j) && Math.abs(corrCov[i][j]) > best) { best = Math.abs(corrCov[i][j]); trap = [i, j]; }
-    return { n, contacts, corrCov, corrPrec, isC, trap }; }
+  coevData() { return buildCoevData(); }
   coevGuess(i, j) { this.setState((s) => ({ coev: { ...s.coev, guess: [i, j] } })); }
 
   // ---------- triangle ----------
@@ -561,7 +515,7 @@ class App extends Component {
     const trueD = pts.map((p) => pts.map((q) => Math.hypot(p[0] - q[0], p[1] - q[1]))); const D = trueD.map((r) => r.slice());
     [[0, 3], [1, 4], [2, 5], [0, 4]].forEach(([a, b]) => { D[a][b] = D[b][a] = trueD[a][b] * 1.75; });
     return { n, pts, D, history: [this.triMax(D).v], playing: false, breakIt: false, step: 0 }; }
-  triMax(D) { let m = 0, tri = null; const n = D.length; for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) if (i !== j) for (let k = 0; k < n; k++) if (k !== i && k !== j) { const v = D[i][j] - (D[i][k] + D[k][j]); if (v > m) { m = v; tri = [i, k, j]; } } return { v: m, tri }; }
+  triMax(D) { return triangleMaxViolation(D); }
   triStep() { this.setState((s) => { if (s.tri.breakIt) return { tri: { ...s.tri, history: [...s.tri.history, s.tri.history[s.tri.history.length - 1]] } };
     const D = s.tri.D.map((r) => r.slice()), n = s.tri.n; for (let k = 0; k < n; k++) for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) if (D[i][k] + D[k][j] < D[i][j]) D[i][j] = D[i][k] + D[k][j];
     return { tri: { ...s.tri, D, history: [...s.tri.history, this.triMax(D).v], step: s.tri.step + 1 } }; }); }
@@ -571,30 +525,19 @@ class App extends Component {
   triBreak() { this.setState((s) => ({ tri: { ...s.tri, breakIt: !s.tri.breakIt } })); }
 
   // ---------- IPA ----------
-  ipaData() { const s = this.state.ipa, d2r = Math.PI / 180;
-    const R = (a) => [[Math.cos(a), -Math.sin(a)], [Math.sin(a), Math.cos(a)]], ap = (M, v) => [M[0][0] * v[0] + M[0][1] * v[1], M[1][0] * v[0] + M[1][1] * v[1]], add = (a, b) => [a[0] + b[0], a[1] + b[1]];
-    const t1 = [-3.2, 1], t2 = [3, -1.2], a1 = 30 * d2r, a2 = -55 * d2r, p1 = [1.6, 0.5], p2 = [-1.1, 1.1];
-    const q0 = add(ap(R(a1), p1), t1), k0 = add(ap(R(a2), p2), t2), d0 = Math.hypot(q0[0] - k0[0], q0[1] - k0[1]);
-    const ag = s.thetaG * d2r, tg = [1.8, 1.4], T = (p) => add(ap(R(ag), p), tg);
-    const q1 = T(q0), k1 = T(k0), d1 = Math.hypot(q1[0] - k1[0], q1[1] - k1[1]);
-    return { q0, k0, q1, k1, d0, d1, residual: Math.abs(d1 - d0), naiveShift: Math.hypot(q1[0] - q0[0], q1[1] - q0[1]),
-      t1: T(t1), t2: T(t2), o1: T(add(ap(R(a1), [1.4, 0]), t1)), o2: T(add(ap(R(a2), [1.4, 0]), t2)) }; }
+  ipaData() { return buildIpaData(this.state.ipa); }
   ipaSet(v) { this.setState((s) => ({ ipa: { ...s.ipa, thetaG: v } })); }
   ipaBreak() { this.setState((s) => ({ ipa: { ...s.ipa, naive: !s.ipa.naive } })); }
 
   // ---------- FAPE ----------
-  fapeTgt() { return [[-4, -2.2], [-3, -0.2], [-2, 1.4], [-0.4, 2], [1.1, 2.2], [2.6, 1.3], [3.3, -0.2], [3, -1.8], [1.7, -2.6]]; }
-  fapeData() { const tgt = this.fapeTgt(), refl = this.state.fape.reflected, pred = refl ? tgt.map((p) => [-p[0], p[1]]) : tgt.map((p) => [p[0], p[1]]); const n = tgt.length, clamp = 4;
-    const frameErr = (A, B) => { let sum = 0, cnt = 0; for (let i = 0; i < n - 1; i++) { const mk = (P) => { const o = P[i], dx = P[i + 1][0] - o[0], dy = P[i + 1][1] - o[1], L = Math.hypot(dx, dy) || 1, ux = dx / L, uy = dy / L; return P.map((p) => { const rx = p[0] - o[0], ry = p[1] - o[1]; return [rx * ux + ry * uy, -rx * uy + ry * ux]; }); };
-        const la = mk(A), lb = mk(B); for (let j = 0; j < n; j++) { sum += Math.min(clamp, Math.hypot(la[j][0] - lb[j][0], la[j][1] - lb[j][1])); cnt++; } } return sum / cnt; };
-    let ds = 0, dc = 0; for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) { const a = Math.hypot(pred[i][0] - pred[j][0], pred[i][1] - pred[j][1]), b = Math.hypot(tgt[i][0] - tgt[j][0], tgt[i][1] - tgt[j][1]); ds += (a - b) * (a - b); dc++; }
-    return { tgt, pred, fape: frameErr(pred, tgt), fapeAligned: frameErr(tgt, tgt), distRmsd: Math.sqrt(ds / dc), refl }; }
+  fapeTgt() { return fapeTarget(); }
+  fapeData() { return buildFapeData(this.state.fape); }
   fapeReflect() { this.setState((s) => ({ fape: { ...s.fape, reflected: !s.fape.reflected } })); }
   fapeBreak() { this.setState((s) => ({ fape: { ...s.fape, naive: !s.fape.naive } })); }
 
   // ---------- recycling ----------
   initRec() { return { x: 0, target: 1, gain: 0.6, cycle: 0, history: [1], deltaHist: [], playing: false, breakIt: false }; }
-  recShape(x) { const n = 12, A = [], B = []; for (let i = 0; i < n; i++) { const t = i / (n - 1); A.push([-5 + t * 10, Math.sin(t * Math.PI * 3) * 0.6]); const a = t * Math.PI * 4; B.push([Math.cos(a) * (1 + t * 2.5), Math.sin(a) * (1 + t * 2.5)]); } return A.map((p, i) => [p[0] + (B[i][0] - p[0]) * x, p[1] + (B[i][1] - p[1]) * x]); }
+  recShape(x) { return recycleShape(x); }
   recStep() { this.setState((s) => { const g = s.rec.breakIt ? 1.85 : s.rec.gain, nx = s.rec.x + g * (s.rec.target - s.rec.x), delta = Math.abs(nx - s.rec.x);
     return { rec: { ...s.rec, x: nx, cycle: s.rec.cycle + 1, history: [...s.rec.history, nx], deltaHist: [...s.rec.deltaHist, delta] } }; }); }
   recPlay() { if (this.state.rec.playing) { clearInterval(this._recT); this.setState((s) => ({ rec: { ...s.rec, playing: false } })); }
@@ -863,6 +806,23 @@ class App extends Component {
     if (!Array.isArray(pae) || !pae.length || !Array.isArray(pae[0])) return null;
     return pae;
   }
+  activeSelection() { return this.state.previewPae || this.state.selectedPae; }
+  selectResidue(resno) {
+    const length = this.realActive()?.ca?.length || this.realPlddt()?.length || this.arcadeTargets()[this.state.target]?.seq?.length || 0;
+    const chain = this.arcadeTargets()[this.state.target]?.pdbChain || "A";
+    this.setState((st2) => ({ selectedPae: nextViewerSelection(st2.selectedPae, resno, { chain, length }), previewPae: null }));
+  }
+  selectPair(i, j, value, source = "pae") {
+    const length = this.realActive()?.ca?.length || this.realPlddt()?.length || this.arcadeTargets()[this.state.target]?.seq?.length || 0;
+    const chain = this.arcadeTargets()[this.state.target]?.pdbChain || "A";
+    this.setState({ selectedPae: paeSelection(i, j, { value, source, chain, length }), previewPae: null });
+  }
+  previewPair(cell) {
+    if (!cell) { this.setState({ previewPae: null }); return; }
+    const length = this.realActive()?.ca?.length || this.realPlddt()?.length || this.arcadeTargets()[this.state.target]?.seq?.length || 0;
+    const chain = this.arcadeTargets()[this.state.target]?.pdbChain || "A";
+    this.setState({ previewPae: paeSelection(cell.i, cell.j, { value: cell.value, source: "pae-preview", chain, length }) });
+  }
   realContactLines() {
     const a = this.realActive();
     const ref = this.referenceCa();
@@ -873,33 +833,51 @@ class App extends Component {
     const real = this.realPlddt();
     const vals = real || this.frameDataT(this.state.frame / 5, this.stageSeed()).pl;
     const n = vals.length || 1;
-    return h("svg", { viewBox: `0 0 ${n * 6} 42`, style: { width: "100%", height: "42px" } }, vals.map((v, i) => h("rect", { key: i, x: i * 6, y: 42 - (v / 100) * 42, width: 5, height: (v / 100) * 42, fill: this.plddt(v), rx: 1 })));
+    const active = this.activeSelection();
+    const selected = new Set(selectionResidueNumbers(active));
+    return h("svg", { viewBox: `0 0 ${n * 6} 42`, style: { width: "100%", height: "42px", cursor: "crosshair" } }, vals.map((v, i) => {
+      const isSelected = selected.has(i + 1);
+      return h("rect", {
+        key: i,
+        x: i * 6,
+        y: 42 - (v / 100) * 42,
+        width: 5,
+        height: (v / 100) * 42,
+        fill: this.plddt(v),
+        rx: 1,
+        stroke: isSelected ? this.C.amber : "none",
+        strokeWidth: isSelected ? 1 : 0,
+        onClick: () => this.selectResidue(i + 1),
+      });
+    }));
   }
   renderMap() { const C = this.C, st2 = this.state;
+    const activeSelection = this.activeSelection();
     const contactLines = this.realContactLines();
     if (st2.mapMode === "delta" && contactLines) {
-      const selected = st2.selectedPae && st2.selectedPae.source === "contact-delta" ? st2.selectedPae : null;
+      const selected = activeSelection && activeSelection.source === "contact-delta" ? activeSelection : null;
       return h(ContactDeltaMap, {
         lines: contactLines,
         residueCount: this.realActive()?.ca?.length || 0,
         selectedPair: selected,
         colors: C,
         labels: truthLabels.contactDeltaLabels,
-        onSelectPair: ({ i, j, kind }) => this.setState({ selectedPae: { i, j, value: kind, source: "contact-delta" } }),
+        onSelectPair: ({ i, j, kind }) => this.selectPair(i, j, kind, "contact-delta"),
       });
     }
     const realPae = this.realPae();
     if (st2.mapMode === "pae" && realPae) {
       return h(PaePanel, {
         pae: realPae,
-        selected: st2.selectedPae,
+        selected: activeSelection,
         colors: C,
-        onSelect: (cell) => this.setState({ selectedPae: cell }),
+        onSelect: (cell) => this.selectPair(cell.i, cell.j, cell.value, "pae"),
+        onPreview: (cell) => this.previewPair(cell),
       });
     }
     const a = this.realActive();
     if (a && a.ca && a.ca.length) { const ca = a.ca, n = ca.length, rects = [], cell = Math.max(2, 5 - 0.6);
-      for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) { const d = Math.hypot(ca[i][0] - ca[j][0], ca[i][1] - ca[j][1], ca[i][2] - ca[j][2]); if (d < 8) { const op = Math.min(1, (8 - d) / 8 + 0.2); [[i, j], [j, i]].forEach(([p, q]) => { const sel = st2.selectedPae && st2.selectedPae.i === p && st2.selectedPae.j === q; rects.push(h("rect", { key: p + "_" + q, x: q * 5, y: p * 5, width: cell, height: cell, fill: C.coev, opacity: op, rx: 0.6, stroke: sel ? C.amber : "none", strokeWidth: sel ? 1.3 : 0, onClick: () => this.setState({ selectedPae: { i: p, j: q, value: d, source: "contact" } }) })); }); } }
+      for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) { const d = Math.hypot(ca[i][0] - ca[j][0], ca[i][1] - ca[j][1], ca[i][2] - ca[j][2]); if (d < 8) { const op = Math.min(1, (8 - d) / 8 + 0.2); [[i, j], [j, i]].forEach(([p, q]) => { const sel = activeSelection && activeSelection.i === p && activeSelection.j === q; rects.push(h("rect", { key: p + "_" + q, x: q * 5, y: p * 5, width: cell, height: cell, fill: C.coev, opacity: op, rx: 0.6, stroke: sel ? C.amber : "none", strokeWidth: sel ? 1.3 : 0, onClick: () => this.selectPair(p, q, d, "contact") })); }); } }
       return h("svg", { "aria-label": "Real C-alpha contact map", viewBox: `0 0 ${n * 5} ${n * 5}`, style: { width: "190px", height: "190px", background: C.bg0, borderRadius: "8px", border: "1px solid " + C.border, cursor: "crosshair" } }, rects); }
     const f = this.frameDataT(st2.frame / 5, this.stageSeed()), n = f.N, rects = [];
     if (st2.mapMode === "contact") { for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) { const d = Math.hypot(f.coords[i][0] - f.coords[j][0], f.coords[i][1] - f.coords[j][1], f.coords[i][2] - f.coords[j][2]); if (d < 5.5) { const op = Math.min(1, (5.5 - d) / 5.5 + 0.25); [[i, j], [j, i]].forEach(([a2, b]) => rects.push(h("rect", { key: a2 + "_" + b, x: b * 5, y: a2 * 5, width: 4.4, height: 4.4, fill: C.coev, opacity: op, rx: 0.6 }))); } } }
@@ -931,14 +909,12 @@ class App extends Component {
     return h("svg", { viewBox: `0 0 ${n * 6} 42`, style: { width: "100%", height: "42px" } }, vals.map((v, i) => h("rect", { key: i, x: i * 6, y: 42 - (v / 100) * 42, width: 5, height: (v / 100) * 42, fill: this.plddt(v), rx: 1 }))); }
   renderCustomMap() { return this.renderMap(); }
 
-  conceptDefs() { return {
-    coevolution: { name: "Coevolution", color: this.C.coev, q: "Two residues mutate together across evolution — does that mean they touch?", boundary: "A 6×6 planted-contact matrix is fully inspectable; AF2 learns a pair representation rather than inverting DCA.", paper: "Fig. 1; Supplement §2", read: "In the matrix, switch covariance -> precision: indirect echoes fade, true contacts stay. Lit residues are coevolving partners that sit close in 3D." },
-    triangle: { name: "Triangle Updates", color: this.C.tri, q: "Can you edit residue–residue distances independently of each other?", boundary: "We relax explicit distances; the Evoformer operates on learned pair features.", paper: "p.586; Supplement §1.6", read: "Edit one distance and watch the max triangle violation spike red - a pair table cannot become a 3D shape until every triple is consistent." },
-    ipa: { name: "Invariant Point Attention", color: this.C.ipa, q: "If you rotate and translate the whole protein, should the model's read of its geometry change?", boundary: "Two frames, two points — real IPA mixes scalar+point+pair-bias attention over many points.", paper: "Fig. 3; Algorithm 22", read: "Rotate the whole scene: the naive readout changes, the IPA readout does not. Geometry judged in residue-local frames is pose-independent." },
-    fape: { name: "FAPE & Chirality", color: this.C.fape, q: "If a predicted structure matches all distances, is it correct?", boundary: "A 2D chain illustrates the failure; real FAPE is over all atoms in all frames, with a clamp.", paper: "p.587; Supplement §1.9.2", read: "Hit REFLECT: the distances stay identical (a distance metric is fooled) but FAPE jumps, because the handedness flipped. Biology is chiral." },
-    recycling: { name: "Recycling", color: this.C.rec, q: "Is the iteration you watch a movie of a protein folding in time?", boundary: "The trajectory is representational iteration — never narrate it as folding kinetics.", paper: "p.585; Algorithm 2", read: "Step the recycles: the shape moves toward a fixed point and stops changing. This is representational iteration, not folding in time." } }; }
+  conceptDefs() { return buildConceptDefs(this.C); }
 
-  arcadeTargets() { return curatedArcadeTargets(); }
+  // Curated six-lens tour first, then the preview-first reference library.
+  // Combined here (not in targets.js) so the data export stays exactly six and
+  // existing index-based state/tour/cache logic is unchanged.
+  arcadeTargets() { return [...curatedArcadeTargets(), ...libraryTargets()]; }
   selectTarget(i) { const t = this.arcadeTargets()[i], ov = { coevolution: false, triangle: false, ipa: false, fape: false, recycling: false };
     if (t.concept === "all") Object.keys(ov).forEach((k) => (ov[k] = true)); else ov[t.concept] = true;
     clearInterval(this._playT); this._playT = null;
@@ -961,6 +937,14 @@ class App extends Component {
     }
   };
   stageSeed() { return this.arcadeTargets()[this.state.target].seed; }
+  // Open a library/curated target by its index in the combined arcadeTargets()
+  // list, then drop into the arcade stage to view it.
+  openFromLibrary(idx) { this.selectTarget(idx); this.setState({ view: "stage", libraryOpen: false }); }
+  // Full-screen browsable grid: lens-tour targets and the preview-first library,
+  // each with its learning outcome. Cards open the target in the arcade.
+  renderLibrary() {
+    return h(LibraryPage, { colors: this.C, defs: this.conceptDefs(), targets: this.arcadeTargets(), onOpen: (i) => this.openFromLibrary(i), onClose: () => this.setState({ libraryOpen: false }) });
+  }
 
   renderResultInspector(hasReal) {
     const C = this.C, summary = this.confidenceSummary(), result = this.state.result || {}, report = this.state.report || {};
@@ -1017,6 +1001,10 @@ class App extends Component {
       onExpand: (id) => this.setState({ expanded: id }),
       notice: curT.notice,
       noticeColor: curConceptColor,
+      scope: {
+        primary: curT.predictionScope || `Folded object: ${curT.seq.length} residues from one protein sequence.`,
+        secondary: curT.omittedContext || `Reference preview: ${curT.pdb}${curT.pdbChain ? ` chain ${curT.pdbChain}` : ""}.`,
+      },
     });
     const realLensModel = realLensEntry ? computeLensModel({
       entry: realLensEntry,
@@ -1057,46 +1045,59 @@ class App extends Component {
     const stageLabel = cf.running ? "◔ FOLDING…" : cf.done ? "✓ FOLD COMPLETE" : cf.t > 0 ? "PAUSED" : "EXTENDED CHAIN — PRESS RUN";
 
     const engines = st2.capabilities.length ? st2.capabilities : [{ id: "localcolabfold", label: "LocalColabFold", available: true }, { id: "educational-simulator", label: "Educational simulator", available: true }];
+    const guardrailDecision = st2.guardrail || st2.result?.meta?.guardrail || null;
+    const guardrailLabel = guardrailDecision
+      ? `${guardrailDecision.allowed === false || guardrailDecision.ok === false ? "blocked" : "allowed"} · ${guardrailDecision.estimated_memory_mib || guardrailDecision.estimate_mib || 0}/${guardrailDecision.budget_mib || "?"} MiB`
+      : "768aa cap";
+    const guardrailTitle = guardrailDecision
+      ? `${guardrailDecision.reason || guardrailDecision.message || "Guardrail decision"}${(guardrailDecision.suggested_actions || []).length ? ` Suggested: ${guardrailDecision.suggested_actions.join(", ")}` : ""}`
+      : "Active backend and local guardrail";
 
 
     return h("div", { style: st("position:fixed;inset:0;display:flex;flex-direction:column;font-family:'Roboto',sans-serif;background:radial-gradient(circle at 50% -10%,#1a1438,#0b0820 55%,#070510);color:#f3f0ff;overflow:hidden;"), className: "arcade-shell" },
 
-      h("header", { style: st("flex:none;height:54px;display:flex;align-items:center;gap:18px;padding:0 20px;background:linear-gradient(180deg,#1c1640,#140e2c);border-bottom:1px solid #322757;z-index:30;") },
-        h("div", { style: st("display:flex;align-items:center;gap:11px;padding:7px 16px;border-radius:9px;background:#0a0612;border:1px solid #4a3d72;background-image:radial-gradient(circle,rgba(255,170,60,.12) 1px,transparent 1px);background-size:4px 4px;") },
-          h("div", { style: st("font-family:'JetBrains Mono',monospace;font-weight:900;letter-spacing:2.6px;font-size:18px;color:#ffb347;text-shadow:0 0 12px rgba(255,170,60,.85);animation:aa-flick 4s infinite;line-height:1;") }, "AMINO ARCADE")),
-        h("div", { style: st("margin-left:6px;display:flex;background:#0a0612;border:1px solid #4a3d72;border-radius:9px;padding:4px;gap:4px;") },
-          h("button", { onClick: () => this.setView("stage"), title: "Curated teaching targets", style: st(`padding:7px 13px;border-radius:7px;border:none;cursor:pointer;font-family:${mono};font-weight:700;font-size:11.5px;letter-spacing:1px;background:${st2.view === "stage" ? "linear-gradient(135deg,#3dffa8,#2fd6ff)" : "transparent"};color:${st2.view === "stage" ? "#08060f" : C.mid};`) }, "◉ ARCADE"),
-          h("button", { onClick: () => this.setView("custom"), title: "Fold It Yourself sequence mode", style: st(`padding:7px 13px;border-radius:7px;border:none;cursor:pointer;font-family:${mono};font-weight:700;font-size:11.5px;letter-spacing:1px;background:${st2.view === "custom" ? "linear-gradient(135deg,#b06bff,#ff4fd8)" : "transparent"};color:${st2.view === "custom" ? "#08060f" : C.mid};`) }, "FIY")),
-        st2.view === "stage" ? h("div", { style: st("margin-left:4px;display:flex;gap:7px;") }, tg.map((t, i) => h("button", { key: i, onClick: () => this.selectTarget(i), style: st(`width:30px;height:30px;border-radius:8px;cursor:pointer;font-family:${mono};font-weight:800;font-size:13px;border:1px solid ${st2.target === i ? C.cyan : C.border};background:${st2.target === i ? "rgba(47,214,255,.18)" : "#0a0612"};color:${st2.target === i ? C.cyan : C.mid};box-shadow:${st2.target === i ? "0 0 12px rgba(47,214,255,.4)" : "none"};`) }, t.n))) : null,
-        h("div", { style: st("flex:1;") }),
-        h("button", { onClick: () => this.setState({ tourOpen: true }), title: "Guided tour: how AlphaFold turns a sequence into a structure (and what it is NOT)", style: st("display:flex;align-items:center;gap:8px;padding:7px 13px;border-radius:9px;background:#0a0612;border:1px solid #3dffa8;cursor:pointer;") }, h("span", { style: st("font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:1.5px;color:#3dffa8;") }, "▶ GUIDED TOUR")),
-        h("div", { title: "Active backend and local guardrail", style: st("display:flex;align-items:center;gap:7px;padding:7px 11px;border-radius:9px;background:#0a0612;border:1px solid #2c2350;font-family:'JetBrains Mono',monospace;font-size:9.5px;color:#9d8fd6;") },
-          h("span", { style: st(`width:7px;height:7px;border-radius:50%;background:${st2.loading ? C.cyan : C.green};box-shadow:0 0 8px ${st2.loading ? C.cyan : C.green};`) }),
-          h("span", null, `${st2.engine} · 768aa cap`)),
-        h("button", { onClick: () => this.setState({ showInfo: true }), title: "result inspector, downloads, and backend specifics", style: st("width:38px;height:38px;border-radius:9px;background:#0a0612;border:1px solid #4a3d72;color:#9d8fd6;font-family:'JetBrains Mono',monospace;font-size:15px;cursor:pointer;") }, "ⓘ")),
+      h(ArcadeHeader, {
+        colors: C,
+        state: st2,
+        targets: tg,
+        defs,
+        mono,
+        guardrailLabel,
+        guardrailTitle,
+        onSetView: (view) => this.setView(view),
+        onOpenLibrary: () => this.setState({ libraryOpen: true }),
+        onSelectTarget: (index) => this.selectTarget(index),
+        onOpenTour: () => this.setState({ tourOpen: true }),
+        onOpenInfo: () => this.setState({ showInfo: true }),
+      }),
 
-      h(TourOverlay, { open: st2.tourOpen, onClose: () => this.setState({ tourOpen: false }), conceptDefs: defs, glossary, equationDeck, colors: C, onFocusLens: this.focusLens }),
+      h(TourOverlay, { open: st2.tourOpen, onClose: () => this.setState({ tourOpen: false }), conceptDefs: defs, glossary, equationDeck, colors: C, onFocusLens: this.focusLens, onOpenBasics: () => this.setState({ tourOpen: false, basicsOpen: true }) }),
+      st2.libraryOpen ? this.renderLibrary() : null,
+      h(ProteinBasics, { open: st2.basicsOpen, onClose: () => this.setState({ basicsOpen: false }), colors: C, onOpenLibrary: () => this.setState({ libraryOpen: true }) }),
 
       st2.view === "stage" ? h("div", { style: st("flex:1;display:flex;flex-direction:column;min-height:0;") },
-        h("div", { style: st("flex:none;display:flex;align-items:center;gap:18px;padding:11px 22px;background:#100c24;border-bottom:1px solid #2c2350;") },
+        h("div", { style: st("flex:none;display:flex;align-items:center;gap:14px;padding:8px 18px;background:#100c24;border-bottom:1px solid #2c2350;min-height:50px;") },
           h("div", { style: st("display:flex;align-items:center;gap:12px;flex:none;") },
-            h("div", { style: st(`width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;font-weight:800;font-size:16px;background:${curConceptColor}1a;border:1px solid ${curConceptColor};color:${curConceptColor};`) }, curT.n),
+            h("div", { style: st(`width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;font-weight:800;font-size:15px;background:${curConceptColor}1a;border:1px solid ${curConceptColor};color:${curConceptColor};`) }, curT.n),
             h("div", { style: st("line-height:1.2;") },
-              h("div", { style: st("font-family:'JetBrains Mono',monospace;font-weight:700;font-size:15px;color:#f3f0ff;") }, curT.name),
-              h("div", { style: st("font-size:10.5px;color:#7a6aa8;margin-top:2px;") }, curT.full))),
-          h("div", { style: st("flex:1;font-size:12.5px;color:#cabbf0;line-height:1.45;") }, curT.blurb),
-          h("div", { style: st(`flex:none;display:flex;align-items:center;gap:8px;padding:7px 13px;border-radius:9px;background:${curConceptColor}1a;border:1px solid ${curConceptColor};`) },
+              h("div", { style: st("font-family:'JetBrains Mono',monospace;font-weight:700;font-size:14px;color:#f3f0ff;white-space:nowrap;") }, curT.name))),
+          h("div", { style: st("flex:1;font-size:11.5px;color:#cabbf0;line-height:1.35;min-width:0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;") }, curT.blurb),
+          h("div", { style: st(`flex:none;display:flex;align-items:center;gap:7px;padding:6px 10px;border-radius:8px;background:${curConceptColor}1a;border:1px solid ${curConceptColor};`) },
             h("span", { style: st("font-family:'JetBrains Mono',monospace;font-size:8.5px;letter-spacing:1.5px;color:#9d8fd6;") }, "LENS"),
-            h("span", { style: st(`font-family:'JetBrains Mono',monospace;font-weight:700;font-size:11px;color:${curConceptColor};`) }, curT.tag))),
+            h("span", { style: st(`font-family:'JetBrains Mono',monospace;font-weight:700;font-size:10.5px;color:${curConceptColor};white-space:nowrap;`) }, curT.tag))),
 
-        h("main", { style: st(`flex:1;display:grid;grid-template-columns:252px 1fr 350px;grid-template-rows:minmax(0,1fr) ${st2.loading || st2.error ? "168px" : "92px"};min-height:0;`) },
+        h("main", { style: st(`flex:1;display:grid;grid-template-columns:236px minmax(420px,1fr) 326px;grid-template-rows:minmax(0,1fr) ${st2.loading || st2.error ? "156px" : "84px"};min-height:0;min-width:0;`) },
 
           lensRail.rail,
 
           h("section", { style: st(st2.molFull ? "position:fixed;inset:0;z-index:60;display:flex;align-items:center;justify-content:center;overflow:hidden;background:radial-gradient(circle at 50% 42%,#101a30,#070b16);" : "grid-column:2;grid-row:1;position:relative;display:flex;align-items:center;justify-content:center;min-height:0;min-width:0;overflow:hidden;background:radial-gradient(circle at 50% 42%,#101a30,#070b16);") },
             lensRail.chips,
-            h("button", { onClick: () => this.setState((s2) => ({ molFull: !s2.molFull })), title: st2.molFull ? "Exit fullscreen" : "Fullscreen the structure viewport", style: st("position:absolute;top:14px;right:14px;z-index:8;width:30px;height:30px;border-radius:8px;background:rgba(10,14,26,.86);border:1px solid #25304a;color:#9d8fd6;cursor:pointer;font-size:13px;line-height:1;") }, st2.molFull ? "✕" : "⛶"),
-            h(MolPlayfield, { pdb: realA && realA.pdb, referenceCa: this.referenceCa(), frameCa: realA && realA.ca, pdbId: !realA ? curT.pdb : undefined, pdbChain: curT.pdbChain, includePreviewHetatm: curT.includePreviewHetatm, defaultSpin: curT.defaultSpin, fallbackSequence: curT.seq, frame: realA, lens: curT.concept, activeLenses: activeLensIds, lensModel: realLensModel, frames: hasReal ? realFrames : null, frameIndex: st2.realIndex, selectedResidues: st2.selectedPae ? [st2.selectedPae.i + 1, st2.selectedPae.j + 1] : [], reflected: st2.reflected, colorMode: st2.colorMode }),
+            h("button", { onClick: () => this.setState((s2) => ({ molFull: !s2.molFull }), () => { try { window.dispatchEvent(new Event("resize")); } catch (e) { void e; } }), title: st2.molFull ? "Exit fullscreen" : "Fullscreen the structure viewport", style: st("position:absolute;top:14px;right:14px;z-index:8;width:32px;height:32px;border-radius:8px;background:rgba(10,14,26,.86);border:1px solid #25304a;color:#cabbf0;cursor:pointer;display:flex;align-items:center;justify-content:center;") },
+              h("svg", { width: 15, height: 15, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round", strokeLinejoin: "round" },
+                st2.molFull
+                  ? [h("path", { key: 1, d: "M8 3v3a2 2 0 0 1-2 2H3" }), h("path", { key: 2, d: "M21 8h-3a2 2 0 0 1-2-2V3" }), h("path", { key: 3, d: "M3 16h3a2 2 0 0 1 2 2v3" }), h("path", { key: 4, d: "M16 21v-3a2 2 0 0 1 2-2h3" })]
+                  : [h("path", { key: 1, d: "M8 3H5a2 2 0 0 0-2 2v3" }), h("path", { key: 2, d: "M16 3h3a2 2 0 0 1 2 2v3" }), h("path", { key: 3, d: "M21 16v3a2 2 0 0 1-2 2h-3" }), h("path", { key: 4, d: "M3 16v3a2 2 0 0 0 2 2h3" })])),
+            h(MolPlayfield, { pdb: realA && realA.pdb, referenceCa: this.referenceCa(), frameCa: realA && realA.ca, pdbId: !realA ? curT.pdb : undefined, pdbChain: curT.pdbChain, includePreviewHetatm: curT.includePreviewHetatm, defaultSpin: curT.defaultSpin, fallbackSequence: curT.seq, frame: realA, lens: curT.concept, activeLenses: activeLensIds, lensModel: realLensModel, frames: hasReal ? realFrames : null, frameIndex: st2.realIndex, selectedPae: this.activeSelection(), selectedResidues: selectionResidueNumbers(this.activeSelection()), onResidueClick: (resno) => this.selectResidue(resno), onClearSelection: () => this.setState({ selectedPae: null, previewPae: null }), reflected: st2.reflected, colorMode: st2.colorMode, fullscreen: st2.molFull }),
             h("div", { style: st("position:absolute;bottom:14px;left:14px;z-index:6;padding:8px 11px;border-radius:8px;background:rgba(10,14,26,.82);border:1px solid #25304a;") },
               h("div", { style: st("display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:6px;") },
                 h("div", { style: st("font-family:'JetBrains Mono',monospace;font-size:8px;letter-spacing:1.5px;color:#7a85a0;") }, legend.title),
@@ -1116,10 +1117,6 @@ class App extends Component {
               h("div", { style: st("font-family:'JetBrains Mono',monospace;font-weight:800;letter-spacing:.8px;color:#ffb347;margin-bottom:6px;") }, truthLabels.lowConfidenceTitle),
               h("div", null, truthLabels.lowConfidenceBody),
               h("div", { style: st("margin-top:6px;color:#9d8fd6;") }, truthLabels.plddtBands)) : null,
-            h("div", { "data-testid": "target-scope", style: st("flex:none;margin:12px 16px 0;padding:11px 12px;border-radius:9px;background:rgba(47,214,255,.06);border:1px solid rgba(47,214,255,.28);font-size:10.5px;line-height:1.5;color:#d9d2ef;") },
-              h("div", { style: st("font-family:'JetBrains Mono',monospace;font-weight:800;letter-spacing:.9px;color:#2fd6ff;margin-bottom:6px;") }, "WHAT IS BEING FOLDED"),
-              h("div", null, curT.predictionScope || `Folded object: ${curT.seq.length} residues from one protein sequence.`),
-              h("div", { style: st("margin-top:6px;color:#9d8fd6;") }, curT.omittedContext || `Reference preview: ${curT.pdb}${curT.pdbChain ? ` chain ${curT.pdbChain}` : ""}.`)),
             h("div", { style: st("flex:none;padding:14px 16px;border-bottom:1px solid #2c2350;") },
               h("div", { style: st("font-family:'JetBrains Mono',monospace;font-size:9.5px;letter-spacing:1px;color:#7a6aa8;margin-bottom:9px;") }, "PER-RESIDUE pLDDT"), this.renderPlddtBars()),
             this.renderModelSelector(),
@@ -1184,7 +1181,7 @@ class App extends Component {
         h("section", { style: st("position:relative;display:flex;align-items:center;justify-content:center;min-height:0;min-width:0;overflow:hidden;background:radial-gradient(circle at 30% 25%,rgba(47,214,255,.10),transparent 45%),radial-gradient(circle at 75% 70%,rgba(255,79,216,.10),transparent 45%),radial-gradient(circle at 50% 50%,#181030,#0a0718);") },
           h("div", { style: st(`position:absolute;top:16px;left:16px;z-index:6;font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:1px;color:${cf.done ? C.green : cf.running ? C.cyan : C.mid};`) }, stageLabel),
           hasReal ? h("button", { onClick: () => this.toggleRealPlayback(), title: "Loop real saved recycle PDB snapshots; this is inference refinement, not physical folding time.", style: st(`position:absolute;top:14px;right:14px;z-index:7;padding:8px 11px;border-radius:8px;background:${st2.realPlaying ? "linear-gradient(135deg,#b06bff,#2fd6ff)" : "rgba(10,14,26,.86)"};border:1px solid ${st2.realPlaying ? C.cyan : "#25304a"};color:${st2.realPlaying ? "#08060f" : "#9d8fd6"};font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:800;letter-spacing:.8px;cursor:pointer;`) }, st2.realPlaying ? "Pause" : "Loop") : null,
-          h(MolPlayfield, { pdb: realA && realA.pdb, referenceCa: this.referenceCa(), frameCa: realA && realA.ca, frame: realA, fallbackSequence: cf.seq, lens: "recycling", activeLenses: ["recycling"], lensModel: realLensModel, frames: hasReal ? realFrames : null, frameIndex: st2.realIndex, selectedResidues: st2.selectedPae ? [st2.selectedPae.i + 1, st2.selectedPae.j + 1] : [], reflected: st2.reflected, colorMode: st2.colorMode, emptyLabel: "Paste a sequence, then run inference to replace this preview with real recycle PDB frames." }),
+          h(MolPlayfield, { pdb: realA && realA.pdb, referenceCa: this.referenceCa(), frameCa: realA && realA.ca, frame: realA, fallbackSequence: cf.seq, lens: "recycling", activeLenses: ["recycling"], lensModel: realLensModel, frames: hasReal ? realFrames : null, frameIndex: st2.realIndex, selectedPae: this.activeSelection(), selectedResidues: selectionResidueNumbers(this.activeSelection()), onResidueClick: (resno) => this.selectResidue(resno), onClearSelection: () => this.setState({ selectedPae: null, previewPae: null }), reflected: st2.reflected, colorMode: st2.colorMode, emptyLabel: "Paste a sequence, then run inference to replace this preview with real recycle PDB frames." }),
           h("div", { style: st("position:absolute;bottom:14px;left:50%;transform:translateX(-50%);z-index:6;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1px;color:#6f6298;text-align:center;") }, hasReal ? `REAL RECYCLE SNAPSHOTS ${st2.realIndex + 1}/${realFrames.length} · ${truthLabels.superposeNote}` : "DRAG TO ROTATE")),
 
         h("aside", { style: st("border-left:1px solid #2c2350;display:flex;flex-direction:column;min-height:0;background:linear-gradient(180deg,#150f30,#0e0a22);overflow-y:auto;") },
@@ -1281,6 +1278,6 @@ class App extends Component {
 
 // ---------------------------------------------------------------------------
 // Mol* playfield — one plugin instance, reloads when the active PDB changes.
-// (Pattern from CLAUDECODE_BACKEND_HANDOFF.md.)
+// (Pattern from docs/handoffs/CLAUDECODE_BACKEND_HANDOFF.md.)
 // ---------------------------------------------------------------------------
 export default App;

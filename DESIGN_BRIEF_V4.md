@@ -4,7 +4,7 @@
 
 - Product spec: `SPEC.md`
 - Implementation plan: `IMPLEMENTATION_PLAN.md`
-- Pedagogical guide: `PEDAGOGICAL_HANDOFF.md`
+- Pedagogical guide: `docs/handoffs/PEDAGOGICAL_HANDOFF.md`
 - Stitch project: AlphaFold Scientific Workstation (`12199674373347158803`)
 - Local Stitch assets:
   - `.stitch/source/01-fold-dashboard-archive.png`

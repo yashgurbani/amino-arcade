@@ -1,13 +1,17 @@
 from __future__ import annotations
 
+import os
 import re
+import time
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
+from urllib.parse import urlparse
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel
+from pathlib import Path
 from typing import Any
 
 from backend.adapters import backend_capabilities, predict_with_engine, sanitize_sequence, validate_sequence
@@ -33,16 +37,31 @@ app = FastAPI(
     description="Local-first AlphaFold2 learning and inference companion with provenance-aware trajectories.",
     version="3.0.0",
 )
+from backend.schemas import JobEnvelope, ManifestEnvelope, PredictionResult, ReportEnvelope
+
+
+def _csv_env(name: str, default: str) -> list[str]:
+    values = [value.strip() for value in os.getenv(name, default).split(",")]
+    return [value for value in values if value]
+
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_csv_env("AF_COMPANION_CORS_ORIGINS", "http://127.0.0.1:5173,http://localhost:5173"),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 REFERENCE_PDB_CACHE: dict[str, str] = {}
+REFERENCE_PDB_CACHE_META: dict[str, dict[str, Any]] = {}
+REFERENCE_PDB_ALLOWED_HOSTS = set(_csv_env("AF_COMPANION_PDB_ALLOWED_HOSTS", "files.rcsb.org"))
+REFERENCE_PDB_TIMEOUT_SECONDS = float(os.getenv("AF_COMPANION_PDB_TIMEOUT_SECONDS", "10"))
+REFERENCE_PDB_MAX_BYTES = int(os.getenv("AF_COMPANION_PDB_MAX_BYTES", str(5 * 1024 * 1024)))
+REFERENCE_PDB_CACHE_TTL_SECONDS = int(os.getenv("AF_COMPANION_PDB_CACHE_TTL_SECONDS", str(7 * 24 * 60 * 60)))
+REFERENCE_PDB_MIN_INTERVAL_SECONDS = float(os.getenv("AF_COMPANION_PDB_MIN_INTERVAL_SECONDS", "0.25"))
+REFERENCE_PDB_CACHE_DIR = Path(os.getenv("AF_COMPANION_PDB_CACHE_DIR", str(Path(__file__).resolve().parents[1] / "prediction-cache" / "pdb")))
+REFERENCE_PDB_LAST_FETCH_AT = 0.0
 
 
 class PredictRequest(BaseModel):
@@ -126,26 +145,101 @@ async def capabilities():
     }
 
 
+def _reference_cache_path(pdb_id: str) -> Path:
+    return REFERENCE_PDB_CACHE_DIR / f"{pdb_id}.pdb"
+
+
+def _reference_meta_path(pdb_id: str) -> Path:
+    return REFERENCE_PDB_CACHE_DIR / f"{pdb_id}.json"
+
+
+def _read_reference_disk_cache(pdb_id: str) -> tuple[str, dict[str, Any]] | None:
+    pdb_path = _reference_cache_path(pdb_id)
+    meta_path = _reference_meta_path(pdb_id)
+    if not pdb_path.exists() or not meta_path.exists():
+        return None
+    if pdb_path.stat().st_size > REFERENCE_PDB_MAX_BYTES:
+        return None
+    age = time.time() - pdb_path.stat().st_mtime
+    if age > REFERENCE_PDB_CACHE_TTL_SECONDS:
+        return None
+    try:
+        import json
+
+        meta = json.loads(meta_path.read_text(encoding="utf-8"))
+        text = pdb_path.read_text(encoding="utf-8", errors="replace")
+    except (OSError, ValueError):
+        return None
+    if "ATOM" not in text:
+        return None
+    return text, meta
+
+
+def _write_reference_disk_cache(pdb_id: str, text: str, meta: dict[str, Any]) -> None:
+    import json
+
+    REFERENCE_PDB_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    _reference_cache_path(pdb_id).write_text(text, encoding="utf-8")
+    _reference_meta_path(pdb_id).write_text(json.dumps(meta, indent=2), encoding="utf-8")
+
+
+def _reference_response(text: str, meta: dict[str, Any]) -> Response:
+    return Response(
+        content=text,
+        media_type="chemical/x-pdb",
+        headers={
+            "Cache-Control": "public, max-age=86400",
+            "X-Reference-PDB-ID": str(meta.get("pdb_id", "")),
+            "X-Reference-Source": str(meta.get("source", "")),
+            "X-Reference-Fetched-At": str(meta.get("fetched_at", "")),
+        },
+    )
+
+
 @app.get("/api/reference/pdb/{pdb_id}")
 async def reference_pdb(pdb_id: str):
+    global REFERENCE_PDB_LAST_FETCH_AT
     normalized = pdb_id.upper().strip()
     if not re.fullmatch(r"[A-Z0-9]{4}", normalized):
         return JSONResponse(status_code=400, content={"status": "error", "message": "PDB id must be four alphanumeric characters."})
     if normalized in REFERENCE_PDB_CACHE:
-        return Response(content=REFERENCE_PDB_CACHE[normalized], media_type="chemical/x-pdb", headers={"Cache-Control": "public, max-age=86400"})
+        return _reference_response(REFERENCE_PDB_CACHE[normalized], REFERENCE_PDB_CACHE_META.get(normalized, {"pdb_id": normalized, "source": "memory-cache"}))
+    disk_cached = _read_reference_disk_cache(normalized)
+    if disk_cached:
+        text, meta = disk_cached
+        REFERENCE_PDB_CACHE[normalized] = text
+        REFERENCE_PDB_CACHE_META[normalized] = meta
+        return _reference_response(text, meta)
     url = f"https://files.rcsb.org/download/{normalized}.pdb"
+    host = urlparse(url).hostname or ""
+    if host not in REFERENCE_PDB_ALLOWED_HOSTS:
+        return JSONResponse(status_code=502, content={"status": "error", "message": f"Reference host '{host}' is not allowlisted."})
+    elapsed = time.monotonic() - REFERENCE_PDB_LAST_FETCH_AT
+    if elapsed < REFERENCE_PDB_MIN_INTERVAL_SECONDS:
+        time.sleep(REFERENCE_PDB_MIN_INTERVAL_SECONDS - elapsed)
     try:
         request = Request(url, headers={"User-Agent": "amino-arcade/3d-companion"})
-        with urlopen(request, timeout=10) as response:
-            text = response.read().decode("utf-8", errors="replace")
+        with urlopen(request, timeout=REFERENCE_PDB_TIMEOUT_SECONDS) as response:
+            REFERENCE_PDB_LAST_FETCH_AT = time.monotonic()
+            headers = getattr(response, "headers", {})
+            content_length = headers.get("Content-Length") if hasattr(headers, "get") else None
+            if content_length and int(content_length) > REFERENCE_PDB_MAX_BYTES:
+                return JSONResponse(status_code=413, content={"status": "error", "message": f"RCSB {normalized} PDB exceeds the configured size limit."})
+            payload = response.read(REFERENCE_PDB_MAX_BYTES + 1)
+            if len(payload) > REFERENCE_PDB_MAX_BYTES:
+                return JSONResponse(status_code=413, content={"status": "error", "message": f"RCSB {normalized} PDB exceeds the configured size limit."})
+            text = payload.decode("utf-8", errors="replace")
     except HTTPError as exc:
         return JSONResponse(status_code=exc.code, content={"status": "error", "message": f"RCSB {normalized} returned HTTP {exc.code}."})
     except (TimeoutError, URLError, OSError) as exc:
         return JSONResponse(status_code=502, content={"status": "error", "message": f"RCSB {normalized} unavailable: {exc}"})
     if "ATOM" not in text:
         return JSONResponse(status_code=502, content={"status": "error", "message": f"RCSB {normalized} did not return a usable PDB."})
+    meta = {"pdb_id": normalized, "source": url, "fetched_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "max_bytes": REFERENCE_PDB_MAX_BYTES}
     REFERENCE_PDB_CACHE[normalized] = text
-    return Response(content=text, media_type="chemical/x-pdb", headers={"Cache-Control": "public, max-age=86400"})
+    REFERENCE_PDB_CACHE_META[normalized] = meta
+    _write_reference_disk_cache(normalized, text, meta)
+    return _reference_response(text, meta)
 
 
 @app.post("/api/backend/preflight")
@@ -193,7 +287,7 @@ async def physics_local_relaxation(request: PhysicsRelaxationRequest):
         return JSONResponse(status_code=500, content={"status": "error", "message": f"Local relaxation failed: {exc}"})
 
 
-@app.post("/api/predict")
+@app.post("/api/predict", response_model=PredictionResult)
 async def predict(request: PredictRequest):
     sequence, error = _validated_sequence(request.sequence)
     if error:
@@ -209,7 +303,7 @@ async def predict(request: PredictRequest):
         return JSONResponse(status_code=500, content={"status": "error", "message": f"Prediction failed: {exc}"})
 
 
-@app.post("/api/predict/jobs")
+@app.post("/api/predict/jobs", response_model=JobEnvelope)
 async def create_job(request: PredictRequest):
     sequence, error = _validated_sequence(request.sequence)
     if error:
@@ -230,7 +324,7 @@ async def prediction_status():
     return {"status": "running" if job_summary()["active_jobs"] else "idle", **job_summary()}
 
 
-@app.get("/api/predict/jobs/{job_id}")
+@app.get("/api/predict/jobs/{job_id}", response_model=JobEnvelope)
 async def prediction_job(job_id: str):
     job = get_job(job_id)
     if not job:
@@ -238,7 +332,7 @@ async def prediction_job(job_id: str):
     return {"status": "success", "job": job}
 
 
-@app.post("/api/predict/jobs/{job_id}/cancel")
+@app.post("/api/predict/jobs/{job_id}/cancel", response_model=JobEnvelope)
 async def prediction_cancel(job_id: str):
     job = cancel_job(job_id)
     if not job:
@@ -262,7 +356,7 @@ async def prediction_result(job_id: str):
     return {"status": "success", "result": result}
 
 
-@app.get("/api/predict/jobs/{job_id}/manifest")
+@app.get("/api/predict/jobs/{job_id}/manifest", response_model=ManifestEnvelope)
 async def prediction_manifest(job_id: str):
     manifest = get_job_manifest(job_id)
     if not manifest:
@@ -278,7 +372,7 @@ async def prediction_frame(job_id: str, frame_index: int, model_index: int | Non
     return {"status": "success", "frame": frame}
 
 
-@app.get("/api/predict/jobs/{job_id}/report")
+@app.get("/api/predict/jobs/{job_id}/report", response_model=ReportEnvelope)
 async def prediction_report(job_id: str):
     report = get_job_report(job_id)
     if not report:

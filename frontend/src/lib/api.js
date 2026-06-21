@@ -1,4 +1,6 @@
 const API_BASE = import.meta.env.VITE_API_BASE || "http://127.0.0.1:8011";
+const PDB_FETCH_TIMEOUT_MS = Number(import.meta.env.VITE_PDB_FETCH_TIMEOUT_MS || 10000);
+const PDB_MAX_BYTES = Number(import.meta.env.VITE_PDB_MAX_BYTES || 5 * 1024 * 1024);
 // Default to bundled curated results when present. This keeps the six arcade
 // examples working in zero-install/static demos without a Python backend. Set
 // VITE_DEMO_CACHE=0 to force live backend jobs for every Fold click.
@@ -22,9 +24,31 @@ export async function fetchJson(path, options = {}) {
   });
   const data = await response.json().catch(() => ({}));
   if (!response.ok || data.status === "error") {
-    throw new Error(data.message || `Request failed with ${response.status}`);
+    const error = new Error(data.message || `Request failed with ${response.status}`);
+    error.data = data;
+    error.guardrail = data.guardrail;
+    throw error;
   }
   return data;
+}
+
+async function fetchTextWithLimits(url, options = {}) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), PDB_FETCH_TIMEOUT_MS);
+  try {
+    const response = await fetch(url, { ...options, signal: controller.signal });
+    const contentLength = Number(response.headers.get("Content-Length") || 0);
+    if (contentLength > PDB_MAX_BYTES) {
+      throw new Error(`PDB response exceeds ${PDB_MAX_BYTES} bytes`);
+    }
+    const text = await response.text();
+    if (new Blob([text]).size > PDB_MAX_BYTES) {
+      throw new Error(`PDB response exceeds ${PDB_MAX_BYTES} bytes`);
+    }
+    return { response, text };
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 export function fetchCapabilities() {
@@ -67,18 +91,20 @@ export async function runLocalRelaxation(pdb, maxIterations = 200) {
 // look identical (the pre-refactor code fetched RCSB directly). RCSB serves CORS
 // headers on files.rcsb.org, so the browser can read it without a proxy.
 export async function fetchReferencePdb(pdbId) {
-  const id = encodeURIComponent(pdbId);
+  const normalized = String(pdbId).toUpperCase().trim();
+  if (!/^[A-Z0-9]{4}$/.test(normalized)) {
+    throw new Error("PDB id must be four alphanumeric characters.");
+  }
+  const id = encodeURIComponent(normalized);
   try {
-    const response = await fetch(`${API_BASE}/api/reference/pdb/${id}`);
-    const text = await response.text();
+    const { response, text } = await fetchTextWithLimits(`${API_BASE}/api/reference/pdb/${id}`);
     if (response.ok && text.includes("ATOM")) return text;
     throw new Error(`RCSB proxy returned ${response.status}`);
   } catch (proxyErr) {
     // Backend down / wrong origin / network error -> go straight to RCSB.
-    const direct = await fetch(`https://files.rcsb.org/download/${String(pdbId).toUpperCase()}.pdb`);
-    if (!direct.ok) throw new Error(`RCSB ${pdbId} unavailable (${direct.status}); proxy: ${proxyErr.message}`, { cause: proxyErr });
-    const text = await direct.text();
-    if (!text.includes("ATOM")) throw new Error(`RCSB ${pdbId} returned no usable PDB`, { cause: proxyErr });
+    const { response: direct, text } = await fetchTextWithLimits(`https://files.rcsb.org/download/${normalized}.pdb`, { cache: "force-cache" });
+    if (!direct.ok) throw new Error(`RCSB ${normalized} unavailable (${direct.status}); proxy: ${proxyErr.message}`, { cause: proxyErr });
+    if (!text.includes("ATOM")) throw new Error(`RCSB ${normalized} returned no usable PDB`, { cause: proxyErr });
     return text;
   }
 }

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { arcadeTargets, GFP_SEQ, AMY_SEQ, CA2_SEQ, PGK_SEQ, ADK_SEQ } from "./targets.js";
+import { arcadeTargets, libraryTargets, GFP_SEQ, AMY_SEQ, CA2_SEQ, PGK_SEQ, ADK_SEQ, LYZ_SEQ, CAM_SEQ, RAS_SEQ, UBQ_SEQ, VIL_SEQ, TIM_SEQ, SYN_SEQ, PRP_SEQ, P53_SEQ, HIV_SEQ } from "./targets.js";
 
 test("arcadeTargets exports six curated targets with unique ids", () => {
   const targets = arcadeTargets();
@@ -52,4 +52,45 @@ test("new coevolution/FAPE swaps fold within the 768-residue bound", () => {
   assert.equal(ca.concept, "fape");
   assert.equal(amylase.seq.length, 496);
   assert.equal(ca.seq.length, 260);
+});
+
+test("libraryTargets are preview-first references with full metadata", () => {
+  const lib = libraryTargets();
+  assert.equal(lib.length, 10);
+  assert.equal(new Set(lib.map((t) => t.n)).size, 10);
+  assert.ok(lib.every((t) => t.library === true));
+  assert.ok(lib.every((t) => t.seq && t.pdb && t.pdbChain && t.predictionScope && t.omittedContext && t.notice && t.blurb && t.learningOutcome));
+});
+
+test("libraryTargets reuse existing lens concepts so overlays/colors resolve", () => {
+  const lensConcepts = new Set(["coevolution", "triangle", "ipa", "fape", "recycling"]);
+  assert.ok(libraryTargets().every((t) => lensConcepts.has(t.concept)));
+});
+
+test("library sequences match verified RCSB chain-A lengths", () => {
+  const byPdb = Object.fromEntries(libraryTargets().map((t) => [t.pdb, t]));
+  assert.equal(byPdb["1LYZ"].seq, LYZ_SEQ);
+  assert.equal(byPdb["1LYZ"].seq.length, 129);
+  assert.equal(byPdb["1CLL"].seq, CAM_SEQ);
+  assert.equal(byPdb["1CLL"].seq.length, 148);
+  assert.equal(byPdb["5P21"].seq, RAS_SEQ);
+  assert.equal(byPdb["5P21"].seq.length, 166);
+  assert.equal(byPdb["1UBQ"].seq, UBQ_SEQ);
+  assert.equal(byPdb["1UBQ"].seq.length, 76);
+  assert.equal(byPdb["1VII"].seq, VIL_SEQ);
+  assert.equal(byPdb["1VII"].seq.length, 36);
+  assert.equal(byPdb["1TIM"].seq, TIM_SEQ);
+  assert.equal(byPdb["1TIM"].seq.length, 247);
+  assert.equal(byPdb["1XQ8"].seq, SYN_SEQ);
+  assert.equal(byPdb["1XQ8"].seq.length, 140);
+  assert.equal(byPdb["1QLX"].seq, PRP_SEQ);
+  assert.equal(byPdb["1QLX"].seq.length, 210);
+  assert.equal(byPdb["1TUP"].seq, P53_SEQ);
+  assert.equal(byPdb["1TUP"].seq.length, 219);
+  assert.equal(byPdb["1HSG"].seq, HIV_SEQ);
+  assert.equal(byPdb["1HSG"].seq.length, 99);
+});
+
+test("curated set is unchanged at six targets despite the library", () => {
+  assert.equal(arcadeTargets().length, 6);
 });

@@ -1,6 +1,6 @@
 # IMPLEMENTATION PLAN — FoldYourProtein v3
 
-Companion to `SPEC.md`. This is the *how* and *when*. It is phased so each phase ships something verifiable and the app is never broken between phases. It also explicitly answers the six "Recommended Next Implementation Steps" from `HANDOFF_CLAUDE_CODE.md` (mapped in §8).
+Companion to `SPEC.md`. This is the *how* and *when*. It is phased so each phase ships something verifiable and the app is never broken between phases. It also explicitly answers the six "Recommended Next Implementation Steps" from `docs/handoffs/HANDOFF_CLAUDE_CODE.md` (mapped in §8).
 
 Run all commands from `D:\Projects\alphafold\3d-companion`.
 
