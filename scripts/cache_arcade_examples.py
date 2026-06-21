@@ -26,8 +26,9 @@ def _targets() -> list[dict[str, Any]]:
     script = (
         "import { arcadeTargets } from './frontend/src/data/targets.js'; "
         "console.log(JSON.stringify(arcadeTargets().map(t=>({"
-        "n:t.n,name:t.name,full:t.full,seq:t.seq,pdb:t.pdb,concept:t.concept,"
-        "msaMode:t.msaMode,expectation:t.expectation,tag:t.tag,blurb:t.blurb"
+        "n:t.n,name:t.name,full:t.full,seq:t.seq,pdb:t.pdb,pdbChain:t.pdbChain,"
+        "concept:t.concept,msaMode:t.msaMode,expectation:t.expectation,tag:t.tag,"
+        "blurb:t.blurb,predictionScope:t.predictionScope,omittedContext:t.omittedContext"
         "}))))"
     )
     raw = subprocess.check_output(["node", "--input-type=module", "-e", script], cwd=ROOT, text=True)
@@ -46,8 +47,11 @@ def _demo_payload(result: dict[str, Any], target: dict[str, Any], verdict: dict[
         "n": target["n"],
         "name": target["name"],
         "pdb": target["pdb"],
+        "pdb_chain": target.get("pdbChain"),
         "expectation": target["expectation"],
         "msa_mode": target["msaMode"],
+        "prediction_scope": target.get("predictionScope"),
+        "omitted_context": target.get("omittedContext"),
     }
     payload["sanity_gate"] = verdict
     return payload
@@ -64,8 +68,12 @@ def _write_demo_result(target: dict[str, Any], result: dict[str, Any], verdict: 
         "name": target["name"],
         "url": f"/demo-cache/{filename}",
         "sequence_sha256": _sha256(target["seq"]),
+        "pdb": target["pdb"],
+        "pdb_chain": target.get("pdbChain"),
         "msa_mode": target["msaMode"],
         "expectation": target["expectation"],
+        "prediction_scope": target.get("predictionScope"),
+        "omitted_context": target.get("omittedContext"),
         "cache_key": result.get("cache_key"),
         "passed_gate": verdict.get("passed"),
         "best_mean_plddt": verdict.get("best_mean_plddt"),
@@ -143,7 +151,8 @@ def main() -> int:
     rows: list[dict[str, Any]] = []
     failures = 0
 
-    for target in _targets():
+    all_targets = _targets()
+    for target in all_targets:
         if wanted and target["n"].lower() not in wanted and target["name"].lower() not in wanted:
             continue
         options = normalize_options({"num_recycle": args.num_recycle, "num_models": args.num_models, "msa_mode": target["msaMode"]})
@@ -195,16 +204,23 @@ def main() -> int:
         if manifest_path.exists():
             try:
                 previous = json.loads(manifest_path.read_text(encoding="utf-8"))
-                existing = {str(item.get("target")): item for item in previous.get("results", []) if item.get("target") is not None}
+                expected_hashes = {str(target["n"]): _sha256(target["seq"]) for target in all_targets}
+                existing = {
+                    str(item.get("target")): item
+                    for item in previous.get("results", [])
+                    if item.get("target") is not None
+                    and item.get("sequence_sha256") == expected_hashes.get(str(item.get("target")))
+                }
             except (OSError, json.JSONDecodeError):
                 existing = {}
         for row in rows:
             existing[str(row["target"])] = row
+        ordered_results = [existing[target["n"]] for target in all_targets if target["n"] in existing]
         manifest = {
             "version": 1,
             "generated_by": "scripts/cache_arcade_examples.py",
             "engine": "localcolabfold",
-            "results": [existing[key] for key in sorted(existing, key=lambda value: int(value))],
+            "results": ordered_results,
         }
         manifest_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
         print(f"\nmanifest: {manifest_path}")

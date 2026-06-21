@@ -11,6 +11,7 @@ __pycache__/
 **/.fuse_hidden*
 *.pdf
 *.zip
+*.7z
 stress_output*.txt
 chrome-smoke-profile*/
 .agents/

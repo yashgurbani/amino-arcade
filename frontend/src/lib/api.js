@@ -1,5 +1,8 @@
 const API_BASE = import.meta.env.VITE_API_BASE || "http://127.0.0.1:8011";
-const DEMO_CACHE_ENABLED = import.meta.env.VITE_DEMO_CACHE === "1";
+// Default to bundled curated results when present. This keeps the six arcade
+// examples working in zero-install/static demos without a Python backend. Set
+// VITE_DEMO_CACHE=0 to force live backend jobs for every Fold click.
+const DEMO_CACHE_ENABLED = import.meta.env.VITE_DEMO_CACHE !== "0";
 const DEMO_BASE = `${import.meta.env.BASE_URL || "/"}demo-cache`;
 
 export function isDemoCacheEnabled() {

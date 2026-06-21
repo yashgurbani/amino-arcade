@@ -7,6 +7,8 @@ import { fetchReferencePdb } from "../lib/api";
 import { CONTACT_DELTA_STYLES, visibleContactDeltaCells } from "../lib/contactDeltaView";
 import { groupResidueColors, residueColorLegend } from "../lib/lensColors";
 import { localFrameSegmentForLength } from "../lib/localFrameSegment";
+import { trackballAnimateForLenses } from "../lib/molstarTrackball";
+import { filterPdbByChain } from "../lib/pdbChain";
 import { superposePdbToReference } from "../lib/superpose";
 import { st, withTimeout, fallbackPdb } from "../lib/viewer";
 
@@ -29,7 +31,7 @@ class MolPlayfield extends Component {
     } else {
       this._trajKey = null;
       const previewSequenceChanged = !this.props.pdb && !this.props.pdbId && prev.fallbackSequence !== this.props.fallbackSequence;
-      if (prev.pdb !== this.props.pdb || prev.pdbId !== this.props.pdbId || previewSequenceChanged || reflectChanged) {
+      if (prev.pdb !== this.props.pdb || prev.pdbId !== this.props.pdbId || prev.pdbChain !== this.props.pdbChain || prev.includePreviewHetatm !== this.props.includePreviewHetatm || previewSequenceChanged || reflectChanged) {
         const frameToFrame = !!(prev.pdb && this.props.pdb) && !reflectChanged;
         this.load({ resetCamera: !frameToFrame, quiet: frameToFrame });
         return;
@@ -38,7 +40,7 @@ class MolPlayfield extends Component {
     }
     if (lensesChanged || selChanged || prev.lens !== this.props.lens || prev.lensModel !== this.props.lensModel) this.applyLensAnnotations();
     if (prev.lensModel !== this.props.lensModel || lensesChanged || prev.lens !== this.props.lens || prev.colorMode !== this.props.colorMode) { this.applyColorTheme(); this.applyResidueOverlay(); }
-    if (lensesChanged) this.applySpin();
+    if (lensesChanged || prev.defaultSpin !== this.props.defaultSpin) this.applySpin();
     if (prev.lensModel !== this.props.lensModel || lensesChanged) this.applyContactLines();
   }
   componentWillUnmount() { this._mounted = false; this._loadSeq += 1; try { if (this.plugin && this.plugin.dispose) this.plugin.dispose(); } catch (e) { void e; } this.plugin = null; this._contactLineRefs = []; }
@@ -52,15 +54,14 @@ class MolPlayfield extends Component {
     }).join("\n");
   }
 
-  // IPA in the main viewer: gently auto-spin so "no privileged orientation" is
-  // something you watch, not just read. Spin only while the IPA lens is active.
+  // Optional target-level spin: useful for IPA/all-lens teaching targets, but
+  // not forced by toggling the IPA lens itself.
   async applySpin() {
     if (!this.plugin) return;
-    const spin = (this.props.activeLenses || []).includes("ipa");
     try {
       const { PluginCommands } = await import("molstar/lib/mol-plugin/commands");
       await PluginCommands.Canvas3D.SetSettings(this.plugin, { settings: (props) => {
-        if (props.trackball) props.trackball.animate = spin ? { name: "spin", params: { speed: 0.6 } } : { name: "off", params: {} };
+        if (props.trackball) props.trackball.animate = trackballAnimateForLenses(this.props.activeLenses || [], this.props.defaultSpin);
       } });
     } catch (e) { void e; }
   }
@@ -79,8 +80,10 @@ class MolPlayfield extends Component {
     }
     if (this.props.pdbId) {
       try {
-        const text = await withTimeout(fetchReferencePdb(this.props.pdbId), 10000, `RCSB ${this.props.pdbId}`);
-        return { text, label: `${this.props.pdbId} (RCSB)`, source: "rcsb" };
+        const fetched = await withTimeout(fetchReferencePdb(this.props.pdbId), 10000, `RCSB ${this.props.pdbId}`);
+        const text = filterPdbByChain(fetched, this.props.pdbChain, { includeHetatm: this.props.includePreviewHetatm });
+        const chainLabel = this.props.pdbChain ? ` chain ${this.props.pdbChain}` : "";
+        return { text, label: `${this.props.pdbId}${chainLabel} (RCSB)`, source: "rcsb" };
       } catch (err) {
         console.info("RCSB reference unavailable; using local preview PDB", err);
         return { text: fallbackPdb(this.props.fallbackSequence, `${this.props.pdbId} preview`), label: `${this.props.pdbId} preview`, source: "preview" };
@@ -100,8 +103,8 @@ class MolPlayfield extends Component {
         props.renderer.backgroundColor = Color(0x050812);
         props.postprocessing = {
           ...props.postprocessing,
-          shadow: { name: "on", params: { steps: 2, maxDistance: 4, tolerance: 1 } },
-          outline: { name: "on", params: { scale: 1, threshold: 0.33, color: Color(0x000000), includeTransparent: true } },
+          shadow: { name: "off", params: {} },
+          outline: { name: "off", params: {} },
         };
         if (props.camera && props.camera.helper && props.camera.helper.axes) props.camera.helper.axes = { name: "off", params: {} };
       } });
@@ -350,8 +353,9 @@ class MolPlayfield extends Component {
       if (!isCurrent() || !this.host) return;
       if (!this.plugin) {
         const defaultSpec = DefaultPluginUISpec();
-        // Full Mol* viewport tools restored: reset camera, screenshot,
-        // fullscreen/settings/lighting. XR/VR is disabled below.
+        // Keep the useful viewport tools (reset, screenshot, fullscreen,
+        // settings/illumination). Hide the full Mol* controls-panel wrench and
+        // XR/VR because they do not fit this embedded teaching layout.
         this.plugin = await withTimeout(createPluginUI({
           target: this.host,
           spec: {
@@ -359,6 +363,9 @@ class MolPlayfield extends Component {
             layout: { initial: { isExpanded: false, showControls: false } },
             config: [
               ...(defaultSpec.config || []),
+              [PluginConfig.Viewport.ShowControls, false],
+              [PluginConfig.Viewport.ShowExpand, false],
+              [PluginConfig.Viewport.ShowToggleFullscreen, true],
               [PluginConfig.Viewport.ShowXR, false],
               [PluginConfig.Viewport.ShowSelectionMode, false],
               [PluginConfig.Viewport.ShowAnimation, false],

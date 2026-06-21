@@ -447,15 +447,19 @@ class App extends Component {
     try {
       if (isDemoCacheEnabled()) {
         this.addRunLog(fiy, "DEMO", "loading bundled LocalColabFold result", this.C.cyan);
-        const res = await fetchDemoResultForSequence(cleaned);
-        clearInterval(this._foldT);
-        const demoJob = { id: `demo-${res.meta?.target?.n || "cache"}`, status: "succeeded", engine: res.engine || "localcolabfold", options: res.meta?.options || runOptions, cache_key: res.cache_key };
-        this.setState({ result: res, resultSeq: cleaned, pendingSeq: "", report: null, realIndex: 0, realPlaying: false, selectedModel: 0, loading: false, jobPopupOpen: false, job: demoJob }, () => {
-          if ((res.frames || []).length > 1) this.playReal(true);
-        });
-        this.addRunLog(fiy, "✓", `demo fold loaded · ${res.frames?.length || 0} recycle frames`, this.C.green);
-        if (fiy) this.setState((s) => ({ custom: { ...s.custom, running: false, done: true, t: 1 } }));
-        return;
+        try {
+          const res = await fetchDemoResultForSequence(cleaned);
+          clearInterval(this._foldT);
+          const demoJob = { id: `demo-${res.meta?.target?.n || "cache"}`, status: "succeeded", engine: res.engine || "localcolabfold", options: res.meta?.options || runOptions, cache_key: res.cache_key };
+          this.setState({ result: res, resultSeq: cleaned, pendingSeq: "", report: null, realIndex: 0, realPlaying: false, selectedModel: 0, loading: false, jobPopupOpen: false, job: demoJob }, () => {
+            if ((res.frames || []).length > 1) this.playReal(true);
+          });
+          this.addRunLog(fiy, "✓", `demo fold loaded · ${res.frames?.length || 0} recycle frames`, this.C.green);
+          if (fiy) this.setState((s) => ({ custom: { ...s.custom, running: false, done: true, t: 1 } }));
+          return;
+        } catch (demoErr) {
+          this.addRunLog(fiy, "DEMO", `${demoErr.message}; running backend instead`, this.C.amber);
+        }
       }
       const created = await createPredictionJob(cleaned, engine, runOptions);
       this.setState({ job: created });
@@ -1092,7 +1096,7 @@ class App extends Component {
           h("section", { style: st(st2.molFull ? "position:fixed;inset:0;z-index:60;display:flex;align-items:center;justify-content:center;overflow:hidden;background:radial-gradient(circle at 50% 42%,#101a30,#070b16);" : "grid-column:2;grid-row:1;position:relative;display:flex;align-items:center;justify-content:center;min-height:0;min-width:0;overflow:hidden;background:radial-gradient(circle at 50% 42%,#101a30,#070b16);") },
             lensRail.chips,
             h("button", { onClick: () => this.setState((s2) => ({ molFull: !s2.molFull })), title: st2.molFull ? "Exit fullscreen" : "Fullscreen the structure viewport", style: st("position:absolute;top:14px;right:14px;z-index:8;width:30px;height:30px;border-radius:8px;background:rgba(10,14,26,.86);border:1px solid #25304a;color:#9d8fd6;cursor:pointer;font-size:13px;line-height:1;") }, st2.molFull ? "✕" : "⛶"),
-            h(MolPlayfield, { pdb: realA && realA.pdb, referenceCa: this.referenceCa(), frameCa: realA && realA.ca, pdbId: !realA ? curT.pdb : undefined, fallbackSequence: curT.seq, frame: realA, lens: curT.concept, activeLenses: activeLensIds, lensModel: realLensModel, frames: hasReal ? realFrames : null, frameIndex: st2.realIndex, selectedResidues: st2.selectedPae ? [st2.selectedPae.i + 1, st2.selectedPae.j + 1] : [], reflected: st2.reflected, colorMode: st2.colorMode }),
+            h(MolPlayfield, { pdb: realA && realA.pdb, referenceCa: this.referenceCa(), frameCa: realA && realA.ca, pdbId: !realA ? curT.pdb : undefined, pdbChain: curT.pdbChain, includePreviewHetatm: curT.includePreviewHetatm, defaultSpin: curT.defaultSpin, fallbackSequence: curT.seq, frame: realA, lens: curT.concept, activeLenses: activeLensIds, lensModel: realLensModel, frames: hasReal ? realFrames : null, frameIndex: st2.realIndex, selectedResidues: st2.selectedPae ? [st2.selectedPae.i + 1, st2.selectedPae.j + 1] : [], reflected: st2.reflected, colorMode: st2.colorMode }),
             h("div", { style: st("position:absolute;bottom:14px;left:14px;z-index:6;padding:8px 11px;border-radius:8px;background:rgba(10,14,26,.82);border:1px solid #25304a;") },
               h("div", { style: st("display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:6px;") },
                 h("div", { style: st("font-family:'JetBrains Mono',monospace;font-size:8px;letter-spacing:1.5px;color:#7a85a0;") }, legend.title),
@@ -1112,6 +1116,10 @@ class App extends Component {
               h("div", { style: st("font-family:'JetBrains Mono',monospace;font-weight:800;letter-spacing:.8px;color:#ffb347;margin-bottom:6px;") }, truthLabels.lowConfidenceTitle),
               h("div", null, truthLabels.lowConfidenceBody),
               h("div", { style: st("margin-top:6px;color:#9d8fd6;") }, truthLabels.plddtBands)) : null,
+            h("div", { "data-testid": "target-scope", style: st("flex:none;margin:12px 16px 0;padding:11px 12px;border-radius:9px;background:rgba(47,214,255,.06);border:1px solid rgba(47,214,255,.28);font-size:10.5px;line-height:1.5;color:#d9d2ef;") },
+              h("div", { style: st("font-family:'JetBrains Mono',monospace;font-weight:800;letter-spacing:.9px;color:#2fd6ff;margin-bottom:6px;") }, "WHAT IS BEING FOLDED"),
+              h("div", null, curT.predictionScope || `Folded object: ${curT.seq.length} residues from one protein sequence.`),
+              h("div", { style: st("margin-top:6px;color:#9d8fd6;") }, curT.omittedContext || `Reference preview: ${curT.pdb}${curT.pdbChain ? ` chain ${curT.pdbChain}` : ""}.`)),
             h("div", { style: st("flex:none;padding:14px 16px;border-bottom:1px solid #2c2350;") },
               h("div", { style: st("font-family:'JetBrains Mono',monospace;font-size:9.5px;letter-spacing:1px;color:#7a6aa8;margin-bottom:9px;") }, "PER-RESIDUE pLDDT"), this.renderPlddtBars()),
             this.renderModelSelector(),

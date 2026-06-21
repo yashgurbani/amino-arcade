@@ -310,8 +310,8 @@ button:focus-visible, textarea:focus-visible, select:focus-visible { outline: 2p
    meaning, so the raw Mol* readout is just clutter in a teaching view. */
 .molstar-dark-host .msp-highlight-info,
 .molstar-dark-host .msp-highlight-info-additional,
-.molstar-dark-host .msp-hover-box-wrapper,
 .molstar-dark-host .msp-hover-box-body,
+.molstar-dark-host .msp-hover-box-spacer,
 .molstar-dark-host .msp-highlight-toast-wrapper {
   display: none !important;
 }

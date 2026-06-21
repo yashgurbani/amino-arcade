@@ -1,12 +1,13 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { arcadeTargets, GFP_SEQ, AMY_SEQ, CA2_SEQ, PGK_SEQ } from "./targets.js";
+import { arcadeTargets, GFP_SEQ, AMY_SEQ, CA2_SEQ, PGK_SEQ, ADK_SEQ } from "./targets.js";
 
 test("arcadeTargets exports six curated targets with unique ids", () => {
   const targets = arcadeTargets();
   assert.equal(targets.length, 6);
   assert.equal(new Set(targets.map((target) => target.n)).size, 6);
-  assert.ok(targets.every((t) => t.seq && t.pdb && t.concept && t.msaMode && t.expectation));
+  assert.ok(targets.every((t) => t.seq && t.pdb && t.pdbChain && t.concept && t.msaMode && t.expectation));
+  assert.ok(targets.every((t) => t.predictionScope && t.omittedContext));
 });
 
 test("every target carries a non-empty notice (what-to-watch line)", () => {
@@ -31,6 +32,16 @@ test("recycling lens uses the measured Goldilocks winner", () => {
   assert.equal(recycling.seq, PGK_SEQ);
   assert.equal(recycling.pdb, "3PGK");
   assert.match(recycling.notice, /intentionally subsampled to 16:32/i);
+});
+
+test("all-lenses target is a chain-scoped kinase, not a multimer/cofactor preview", () => {
+  const all = arcadeTargets().find((t) => t.concept === "all");
+  assert.equal(all.name, "Adenylate kinase");
+  assert.equal(all.seq, ADK_SEQ);
+  assert.equal(all.seq.length, 214);
+  assert.equal(all.pdb, "4AKE");
+  assert.equal(all.pdbChain, "A");
+  assert.match(all.omittedContext, /chain B/i);
 });
 
 test("new coevolution/FAPE swaps fold within the 768-residue bound", () => {
