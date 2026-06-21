@@ -338,7 +338,7 @@ def _trajectory(
     # Derived, honest per-frame diagnostics computed from the real recycle
     # coordinates (RMSD, contact deltas, Ca-FAPE, geometry, pLDDT stats). Kept in
     # a separate `analysis` object so the legacy `frames`/`observables` payload is
-    # untouched. See backend/analysis.py and docs/handoffs/HANDOFF_PEDAGOGY_AND_LENSES.md.
+    # untouched. See backend/analysis.py for the computation boundary.
     try:
         result["analysis"] = build_analysis(frames, reference="final")
         if models:

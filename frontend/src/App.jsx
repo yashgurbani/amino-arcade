@@ -35,8 +35,7 @@ import RecycleTimeline from "./components/RecycleTimeline";
 import ResultInspector from "./components/ResultInspector";
 
 // ---------------------------------------------------------------------------
-// Amino Arcade — faithful port of the Claude Design prototype
-// (Amino Arcade.dc.html) onto the real LocalColabFold + Mol* backend.
+// Amino Arcade combines interactive teaching scenes with LocalColabFold and Mol*.
 //
 // What is preserved from the prototype:
 //   - the arcade cockpit chrome, palette, and JetBrains Mono visual language
@@ -44,7 +43,7 @@ import ResultInspector from "./components/ResultInspector";
 //     FAPE / recycling), the transparent score popup and backend-info popup
 //   - the stylized SVG ribbon used as a teaching preview before a real fold
 //
-// What is wired to the backend (per docs/handoffs/CLAUDECODE_BACKEND_HANDOFF.md):
+// Backend integration:
 //   - a single Mol* playfield (no STRUCTURE/ARCADE toggle) that loads real
 //     LocalColabFold recycle PDB frames once a fold completes
 //   - the six named arcade proteins are real, foldable amino-acid sequences
@@ -1278,6 +1277,5 @@ class App extends Component {
 
 // ---------------------------------------------------------------------------
 // Mol* playfield — one plugin instance, reloads when the active PDB changes.
-// (Pattern from docs/handoffs/CLAUDECODE_BACKEND_HANDOFF.md.)
 // ---------------------------------------------------------------------------
 export default App;

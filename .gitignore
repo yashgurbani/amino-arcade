@@ -33,6 +33,8 @@ prediction-cache/
 .tokenop/
 /work/
 /work*/
+docs/handoffs/
+docs/releases/
 *.pdb
 !e2e_tests/mock_data/*.pdb
 *.cif

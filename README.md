@@ -18,11 +18,11 @@
 
 ---
 
-Amino Arcade takes the geometric ideas in the AlphaFold2 paper ([Jumper et al., 2021](#citation)) and makes them something you can grab and turn over. Sliders drive the concept scenes; real structures spin under the mouse with their confidence painted on. It runs in the browser, works without a GPU using bundled results, and talks to real local AlphaFold-family inference when you want it to.
+Amino Arcade is an interactive way to read the AlphaFold2 paper ([Jumper et al., 2021](#citation)). Ideas you normally meet as equations become scenes you can drive with sliders, shown next to real structures you can rotate and inspect.
 
-The project has one firm rule: it never lets a teaching simulation pass for a biological prediction. Every structure on screen carries a provenance label saying whether it came from a toy simulator, a cached real run, or live local inference.
+It runs in the browser and works without a GPU using bundled results. When you want real predictions, it connects to local AlphaFold-family inference. Throughout, it keeps one rule: a teaching simulation is never dressed up as a biological prediction. Every structure on screen says where it came from.
 
-It is built for the person reading the AlphaFold2 paper with a physics or ML background who wants to *see* what the model is doing, and for the instructors and students they teach.
+It is built for someone reading the paper with a physics or ML background, and for the people they teach.
 
 ## What you can do
 
@@ -139,7 +139,7 @@ flowchart LR
 | `frontend/public/demo-cache/` | Portable, inspectable prediction fixtures |
 | `scripts/` | Setup, cache adoption, scaling, release, and verification utilities |
 
-Design boundaries are written up in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) and [PRODUCT.md](PRODUCT.md).
+Design boundaries are written up in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Verification
 
@@ -198,7 +198,7 @@ Two tools this project depends on are worth citing too:
 
 ## Contributing
 
-The smallest useful contributions are a new teaching scene (`frontend/src/data/sceneSpecs.js`), a tested geometry helper (`frontend/src/lib/`), or a curated target with a learning outcome (`frontend/src/data/targets.js`). See [CONTRIBUTING.md](CONTRIBUTING.md).
+The smallest useful contributions are a new teaching scene (`frontend/src/data/sceneSpecs.js`), a tested geometry helper (`frontend/src/lib/`), or a curated target with a learning outcome (`frontend/src/data/targets.js`). See [CONTRIBUTING.md](CONTRIBUTING.md), [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md), and [SECURITY.md](SECURITY.md).
 
 ## License
 

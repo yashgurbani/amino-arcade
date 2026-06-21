@@ -1,6 +1,5 @@
 // Single source of truth for how the UI talks about recycles, pLDDT, PAE, and
-// physics. No component should invent its own wording (HANDOFF_PEDAGOGY..., 8.1).
-// Copy adapted from the GPT-5.5 Pro audit, Section 5.
+// physics. Components should not invent conflicting terminology.
 
 export const truthLabels = {
   recycleBadge: "AF2 RECYCLE SNAPSHOTS · INFERENCE REFINEMENT",
