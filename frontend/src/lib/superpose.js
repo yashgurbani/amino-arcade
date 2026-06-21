@@ -3,7 +3,7 @@
 // Mirror of backend/analysis.py (kabsch / superpose / rmsd) so the viewer can
 // align recycle frames *before* rendering. This removes the global tumbling that
 // makes recycle playback look like the protein is "spinning" rather than
-// refining (see docs/handoffs/HANDOFF_PEDAGOGY_AND_LENSES.md, Part 3.2). It is alignment only:
+// refining. It is alignment only:
 // no coordinates are invented, interpolated, or amplified.
 
 // --- minimal 3x3 linear algebra (no deps; SVD via Jacobi eigen of A^T A) ---

@@ -9,9 +9,9 @@ dict and decides whether an MSA-backed run is behaving sanely:
   * recycle convergence (aligned RMSD-to-previous) trends downward,
   * provenance says localcolabfold + the expected MSA mode.
 
-The live runner (POST a job, poll, fetch result, call this) is scaffolded in
-scripts/run_mmseqs_sanity_gate.py - see HANDOFF docs. Keeping the judgment here
-means it can be unit-tested against the cached GFP failure without a GPU.
+The live runner (POST a job, poll, fetch result, call this) is implemented in
+scripts/run_mmseqs_sanity_gate.py. Keeping the judgment here means it can be
+unit-tested against the cached GFP failure without a GPU.
 """
 
 from __future__ import annotations

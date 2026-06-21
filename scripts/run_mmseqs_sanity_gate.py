@@ -6,7 +6,7 @@ completion, fetches the result, and judges it with backend.sanity_gate. Writes a
 JSON report under work/sanity-gate/ (git-ignored).
 
 The judgment logic is DONE and tested (backend/sanity_gate.py + test_sanity_gate.py).
-What remains for Codex / a configured machine:
+Before running on a configured machine:
   - confirm the API base URL and request schema match the running backend,
   - confirm LOCALCOLABFOLD_BIN is set and a long real run is acceptable,
   - tune per-target thresholds/baselines (e.g. GFP single-seq ceiling ~26),
@@ -60,7 +60,6 @@ def main() -> int:
     args = ap.parse_args()
 
     base = args.base_url.rstrip("/")
-    # TODO(codex): confirm this request schema matches PredictRequest on the live backend.
     job = _post(f"{base}/api/predict/jobs", {
         "sequence": args.sequence,
         "engine": "localcolabfold",
