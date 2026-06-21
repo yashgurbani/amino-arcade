@@ -1,0 +1,123 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 380" width="1200" height="380" font-family="'JetBrains Mono','SFMono-Regular',ui-monospace,monospace" role="img" aria-label="Amino Arcade: from sequence and MSA, through Evoformer-style reasoning, to a confidence-colored structure">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0.3" y2="1">
+      <stop offset="0" stop-color="#171132"/>
+      <stop offset="1" stop-color="#090613"/>
+    </linearGradient>
+    <linearGradient id="plddt" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#2f6dff"/>
+      <stop offset="0.35" stop-color="#2fd6ff"/>
+      <stop offset="0.6" stop-color="#3dffa8"/>
+      <stop offset="0.8" stop-color="#ffd23d"/>
+      <stop offset="1" stop-color="#ff8a3d"/>
+    </linearGradient>
+    <linearGradient id="title" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#c3b2ff"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1200" height="380" fill="url(#bg)"/>
+  <g stroke="#ffffff" stroke-width="1" opacity="0.035">
+    <path d="M0 70 H1200 M0 140 H1200 M0 210 H1200 M0 280 H1200 M0 350 H1200"/>
+  </g>
+
+  <!-- header -->
+  <text x="60" y="76" font-size="50" font-weight="800" letter-spacing="3" fill="url(#title)">AMINO ARCADE</text>
+  <text x="62" y="104" font-size="16" letter-spacing="1.2" fill="#9d8fd6">See how AlphaFold2 turns a sequence into a structure — and what it leaves out.</text>
+
+  <!-- ===================== PIPELINE ===================== -->
+  <!-- Stage 1: MSA / sequences -->
+  <rect x="56" y="150" width="214" height="120" rx="12" fill="#ffffff" opacity="0.04"/>
+  <rect x="56" y="150" width="214" height="120" rx="12" fill="none" stroke="#2c2350"/>
+  <g>
+    <!-- row 1 -->
+    <rect x="72" y="166" width="30" height="26" rx="3" fill="#ffb347" opacity="0.85"/>
+    <rect x="106" y="166" width="30" height="26" rx="3" fill="#2fd6ff" opacity="0.85"/>
+    <rect x="140" y="166" width="30" height="26" rx="3" fill="#ffb347" opacity="0.85"/>
+    <rect x="174" y="166" width="30" height="26" rx="3" fill="#ff5fd0" opacity="0.85"/>
+    <rect x="208" y="166" width="30" height="26" rx="3" fill="#3dffa8" opacity="0.85"/>
+    <!-- row 2 -->
+    <rect x="72" y="196" width="30" height="26" rx="3" fill="#2fd6ff" opacity="0.85"/>
+    <rect x="106" y="196" width="30" height="26" rx="3" fill="#2fd6ff" opacity="0.85"/>
+    <rect x="140" y="196" width="30" height="26" rx="3" fill="#ff5fd0" opacity="0.85"/>
+    <rect x="174" y="196" width="30" height="26" rx="3" fill="#ff5fd0" opacity="0.85"/>
+    <rect x="208" y="196" width="30" height="26" rx="3" fill="#ffb347" opacity="0.85"/>
+    <!-- row 3 -->
+    <rect x="72" y="226" width="30" height="26" rx="3" fill="#ffb347" opacity="0.85"/>
+    <rect x="106" y="226" width="30" height="26" rx="3" fill="#2fd6ff" opacity="0.85"/>
+    <rect x="140" y="226" width="30" height="26" rx="3" fill="#3dffa8" opacity="0.85"/>
+    <rect x="174" y="226" width="30" height="26" rx="3" fill="#ff5fd0" opacity="0.85"/>
+    <rect x="208" y="226" width="30" height="26" rx="3" fill="#ffb347" opacity="0.85"/>
+    <!-- coevolving columns highlighted -->
+    <rect x="104" y="162" width="34" height="94" rx="5" fill="none" stroke="#ffffff" stroke-width="2" opacity="0.9"/>
+    <rect x="172" y="162" width="34" height="94" rx="5" fill="none" stroke="#ffffff" stroke-width="2" opacity="0.9"/>
+    <path d="M121 158 C 121 146, 189 146, 189 158" fill="none" stroke="#ffffff" stroke-width="1.5" opacity="0.7"/>
+  </g>
+  <text x="163" y="286" font-size="11.5" letter-spacing="0.5" fill="#8a7cba" text-anchor="middle">MSA · co-evolving columns</text>
+
+  <!-- arrow + label: Evoformer -->
+  <text x="312" y="200" font-size="10.5" fill="#7a6aa8" text-anchor="middle">Evoformer</text>
+  <line x1="282" y1="210" x2="338" y2="210" stroke="#6f6298" stroke-width="2"/>
+  <polygon points="338,205 350,210 338,215" fill="#6f6298"/>
+
+  <!-- Stage 2: pair representation -->
+  <rect x="362" y="150" width="150" height="120" rx="12" fill="#ffffff" opacity="0.04"/>
+  <rect x="362" y="150" width="150" height="120" rx="12" fill="none" stroke="#2c2350"/>
+  <g>
+    <!-- 4x4 pair matrix; diagonal bright, two symmetric contacts highlighted -->
+    <!-- row 0 -->
+    <rect x="380" y="166" width="22" height="22" rx="3" fill="#3dffa8" opacity="0.7"/>
+    <rect x="406" y="166" width="22" height="22" rx="3" fill="#2fd6ff" opacity="0.18"/>
+    <rect x="432" y="166" width="22" height="22" rx="3" fill="#2fd6ff" opacity="0.18"/>
+    <rect x="458" y="166" width="22" height="22" rx="3" fill="#2fd6ff" opacity="0.85"/>
+    <!-- row 1 -->
+    <rect x="380" y="192" width="22" height="22" rx="3" fill="#2fd6ff" opacity="0.18"/>
+    <rect x="406" y="192" width="22" height="22" rx="3" fill="#3dffa8" opacity="0.7"/>
+    <rect x="432" y="192" width="22" height="22" rx="3" fill="#2fd6ff" opacity="0.85"/>
+    <rect x="458" y="192" width="22" height="22" rx="3" fill="#2fd6ff" opacity="0.18"/>
+    <!-- row 2 -->
+    <rect x="380" y="218" width="22" height="22" rx="3" fill="#2fd6ff" opacity="0.18"/>
+    <rect x="406" y="218" width="22" height="22" rx="3" fill="#2fd6ff" opacity="0.85"/>
+    <rect x="432" y="218" width="22" height="22" rx="3" fill="#3dffa8" opacity="0.7"/>
+    <rect x="458" y="218" width="22" height="22" rx="3" fill="#2fd6ff" opacity="0.18"/>
+    <!-- row 3 -->
+    <rect x="380" y="244" width="22" height="22" rx="3" fill="#2fd6ff" opacity="0.85"/>
+    <rect x="406" y="244" width="22" height="22" rx="3" fill="#2fd6ff" opacity="0.18"/>
+    <rect x="432" y="244" width="22" height="22" rx="3" fill="#2fd6ff" opacity="0.18"/>
+    <rect x="458" y="244" width="22" height="22" rx="3" fill="#3dffa8" opacity="0.7"/>
+  </g>
+  <text x="437" y="286" font-size="11.5" letter-spacing="0.5" fill="#8a7cba" text-anchor="middle">pair map · contacts</text>
+
+  <!-- arrow + label: Structure module -->
+  <text x="556" y="200" font-size="10.5" fill="#7a6aa8" text-anchor="middle">Structure</text>
+  <line x1="524" y1="210" x2="588" y2="210" stroke="#6f6298" stroke-width="2"/>
+  <polygon points="588,205 600,210 588,215" fill="#6f6298"/>
+
+  <!-- Stage 3: structure + confidence -->
+  <rect x="612" y="150" width="528" height="120" rx="12" fill="#ffffff" opacity="0.04"/>
+  <rect x="612" y="150" width="528" height="120" rx="12" fill="none" stroke="#2c2350"/>
+  <path d="M642 232 C 690 168, 726 168, 752 210 S 824 262, 866 206 S 952 160, 1000 214 S 1086 256, 1116 196"
+        fill="none" stroke="url(#plddt)" stroke-width="20" stroke-linecap="round" opacity="0.16"/>
+  <path d="M642 232 C 690 168, 726 168, 752 210 S 824 262, 866 206 S 952 160, 1000 214 S 1086 256, 1116 196"
+        fill="none" stroke="url(#plddt)" stroke-width="8" stroke-linecap="round"/>
+  <g fill="#0a0716" stroke="#2fd6ff" stroke-width="2">
+    <circle cx="642" cy="232" r="4.5"/><circle cx="752" cy="210" r="4.5"/><circle cx="866" cy="206" r="4.5"/><circle cx="1000" cy="214" r="4.5"/><circle cx="1116" cy="196" r="4.5"/>
+  </g>
+  <text x="876" y="286" font-size="11.5" letter-spacing="0.5" fill="#8a7cba" text-anchor="middle">structure · colored by pLDDT</text>
+
+  <!-- ===================== FOOTER: lenses + legend ===================== -->
+  <text x="60" y="332" font-size="11" letter-spacing="1.5" fill="#7a6aa8">FIVE LENSES ON THE SAME MODEL</text>
+  <g font-size="13" font-weight="700">
+    <g><rect x="60" y="342" width="116" height="28" rx="8" fill="#37d6ff14" stroke="#37d6ff"/><text x="118" y="361" fill="#37d6ff" text-anchor="middle">Coevolution</text></g>
+    <g><rect x="184" y="342" width="100" height="28" rx="8" fill="#3dffa814" stroke="#3dffa8"/><text x="234" y="361" fill="#3dffa8" text-anchor="middle">Triangle</text></g>
+    <g><rect x="292" y="342" width="58" height="28" rx="8" fill="#c08bff14" stroke="#c08bff"/><text x="321" y="361" fill="#c08bff" text-anchor="middle">IPA</text></g>
+    <g><rect x="358" y="342" width="72" height="28" rx="8" fill="#ff5fd014" stroke="#ff5fd0"/><text x="394" y="361" fill="#ff5fd0" text-anchor="middle">FAPE</text></g>
+    <g><rect x="438" y="342" width="104" height="28" rx="8" fill="#ffb34714" stroke="#ffb347"/><text x="490" y="361" fill="#ffb347" text-anchor="middle">Recycling</text></g>
+  </g>
+  <g font-size="11" fill="#7a6aa8">
+    <text x="980" y="338">low</text>
+    <text x="1140" y="338" text-anchor="end">high pLDDT</text>
+    <rect x="980" y="344" width="160" height="10" rx="3" fill="url(#plddt)"/>
+  </g>
+</svg>
