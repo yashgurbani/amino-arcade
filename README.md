@@ -12,7 +12,7 @@
 [![Mol*](https://img.shields.io/badge/viewer-Mol*-8B5CF6)](https://molstar.org/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-3DFFA8.svg)](LICENSE)
 
-[Live demo](https://yashgurbani.github.io/amino-arcade/) · [Quick start](#quick-start) · [Learning lenses](#learning-lenses) · [Protein library](#protein-library) · [Inference engines](#inference-engines) · [Architecture](#architecture) · [Citation](#citation)
+[Live demo](https://yashgurbani.github.io/amino-arcade/) · [Quick start](#quick-start) · [Learning lenses](#learning-lenses) · [Protein library](#protein-library) · [Inference engines](#inference-engines) · [Architecture](#architecture) · [Citations](#citation)
 
 </div>
 
