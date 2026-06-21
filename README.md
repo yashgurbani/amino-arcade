@@ -18,7 +18,7 @@
 
 ---
 
-AlphaFold2 changed structural biology, but the paper behind it ([Jumper et al., 2021](#citation)) is dense and the model can feel like a black box. Amino Arcade is here to open that box: to make AlphaFold visual, approachable, and something you learn by doing rather than only reading.
+AlphaFold2 changed structural biology, but the paper behind it ([Jumper et al., 2021](#citation)) is dense and the model can feel like a black box. Amino Arcade helps open the box: to make AlphaFold visual, approachable, and something you learn by doing rather than only reading.
 
 The ideas at the model's core become interactive scenes instead of equations: coevolution, triangle updates, invariant point attention, FAPE, and recycling. Each one is tied to a real protein with a clear takeaway, so you rotate the structure, read its confidence, and watch what that piece of the model actually does.
 
