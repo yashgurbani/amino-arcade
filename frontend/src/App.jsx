@@ -72,13 +72,13 @@ class App extends Component {
     custom: { seq: "NLYIQWLKDGGPSSGRPPPS", t: 0, running: false, done: false, logs: [], elapsed: 0 },
     target: 0, frame: 5, rot: 0.6, rotX: -0.18, spin: true, hoverRes: null, colorMode: "ss", selectedPae: null,
     overlays: { coevolution: false, triangle: false, ipa: false, fape: false, recycling: false },
-    reflected: false, mapMode: "contact",
+    reflected: false, showInit: true, mapMode: "contact",
     expanded: null, showScore: false, showInfo: false,
     coev: { view: "cov", guess: null }, tri: this.initTri(), ipa: { thetaG: 0, naive: false }, fape: { reflected: false, naive: false }, rec: this.initRec(),
     // backend
     engine: "localcolabfold", capabilities: [], result: null, resultSeq: null,
     job: null, loading: false, error: "", archiveJobs: [], report: null, realIndex: 0, realPlaying: false, selectedModel: 0, runLog: [], jobPopupOpen: false, pendingSeq: "", lastRun: null,
-    inspectorTab: "result", tourOpen: false, physicsStatus: null, physicsRunning: false, physicsResult: null, physicsError: "",
+    inspectorTab: "result", tourOpen: false, molFull: false, physicsStatus: null, physicsRunning: false, physicsResult: null, physicsError: "",
   };
 
   componentDidMount() {
@@ -514,9 +514,8 @@ class App extends Component {
       this.setState((s) => {
         const latest = this.realFrames().length;
         if (latest < 2) { clearInterval(this._playT); this._playT = null; return { realPlaying: false }; }
-        let next = s.realIndex + (this._playDir || 1);
-        if (next >= latest) { this._playDir = -1; next = latest - 2; }
-        if (next < 0) { this._playDir = 1; next = 1; }
+        let next = s.realIndex + 1;
+        if (next >= latest) next = 0; // forward-only: settle to final, then restart at recycle 0
         return { realIndex: Math.max(0, Math.min(latest - 1, next)), realPlaying: true };
       });
     }, 900);
@@ -659,8 +658,8 @@ class App extends Component {
   setSeq(s) { this.setState((st2) => ({ custom: { ...st2.custom, seq: cleanSequence(s).slice(0, 768), done: false }, selectedModel: 0, selectedPae: null })); }
   resetCustom() { clearInterval(this._foldT); clearInterval(this._playT); this._playT = null; this.setState((st2) => ({ custom: { ...st2.custom, t: 0, running: false, done: false, elapsed: 0, logs: [] }, result: null, realPlaying: false, selectedModel: 0, selectedPae: null })); }
   fillSeq(s) { if (this.state.custom.running) return; clearInterval(this._playT); this._playT = null; this.setState((st2) => ({ custom: { ...st2.custom, seq: s, t: 0, done: false, logs: [] }, result: null, realPlaying: false, selectedModel: 0, selectedPae: null })); }
-  stepFwd() { if (this.hasReal()) { this.setState((s) => ({ realIndex: (s.realIndex + 1) % this.realFrames().length })); return; } this.setState((s) => ({ frame: (s.frame + 1) % 6 })); }
-  stepBack() { if (this.hasReal()) { const n = this.realFrames().length; this.setState((s) => ({ realIndex: (s.realIndex + n - 1) % n })); return; } this.setState((s) => ({ frame: (s.frame + 5) % 6 })); }
+  stepFwd() { if (!this.hasReal()) return; this.setState((s) => ({ realIndex: (s.realIndex + 1) % this.realFrames().length })); }
+  stepBack() { if (!this.hasReal()) return; const n = this.realFrames().length; this.setState((s) => ({ realIndex: (s.realIndex + n - 1) % n })); }
   setFrame(i) { if (this.hasReal()) { this.setState({ realIndex: i }); return; } this.setState({ frame: i }); }
   togglePlay() {
     if (this.hasReal()) { this.toggleRealPlayback(); return; }
@@ -1065,7 +1064,7 @@ class App extends Component {
           h("div", { style: st("line-height:1;") }, h("div", { style: st("font-family:'JetBrains Mono',monospace;font-weight:800;letter-spacing:3px;font-size:16px;") }, "AMINO ARCADE"))),
         h("div", { style: st("margin-left:6px;display:flex;background:#0a0612;border:1px solid #4a3d72;border-radius:9px;padding:4px;gap:4px;") },
           h("button", { onClick: () => this.setView("stage"), title: "Curated teaching targets", style: st(`padding:7px 13px;border-radius:7px;border:none;cursor:pointer;font-family:${mono};font-weight:700;font-size:11.5px;letter-spacing:1px;background:${st2.view === "stage" ? "linear-gradient(135deg,#3dffa8,#2fd6ff)" : "transparent"};color:${st2.view === "stage" ? "#08060f" : C.mid};`) }, "◉ ARCADE"),
-          h("button", { onClick: () => this.setView("custom"), title: "Fold It Yourself custom sequence mode", style: st(`padding:7px 13px;border-radius:7px;border:none;cursor:pointer;font-family:${mono};font-weight:700;font-size:11.5px;letter-spacing:1px;background:${st2.view === "custom" ? "linear-gradient(135deg,#b06bff,#ff4fd8)" : "transparent"};color:${st2.view === "custom" ? "#08060f" : C.mid};`) }, "FIY · FOLD IT YOURSELF")),
+          h("button", { onClick: () => this.setView("custom"), title: "Fold It Yourself custom sequence mode", style: st(`padding:7px 13px;border-radius:7px;border:none;cursor:pointer;font-family:${mono};font-weight:700;font-size:11.5px;letter-spacing:1px;background:${st2.view === "custom" ? "linear-gradient(135deg,#b06bff,#ff4fd8)" : "transparent"};color:${st2.view === "custom" ? "#08060f" : C.mid};`) }, "Custom")),
         st2.view === "stage" ? h("div", { style: st("margin-left:4px;display:flex;gap:7px;") }, tg.map((t, i) => h("button", { key: i, onClick: () => this.selectTarget(i), style: st(`width:30px;height:30px;border-radius:8px;cursor:pointer;font-family:${mono};font-weight:800;font-size:13px;border:1px solid ${st2.target === i ? C.cyan : C.border};background:${st2.target === i ? "rgba(47,214,255,.18)" : "#0a0612"};color:${st2.target === i ? C.cyan : C.mid};box-shadow:${st2.target === i ? "0 0 12px rgba(47,214,255,.4)" : "none"};`) }, t.n))) : null,
         h("div", { style: st("flex:1;") }),
         h("button", { onClick: () => this.setState({ tourOpen: true }), title: "Guided tour: how AlphaFold turns a sequence into a structure (and what it is NOT)", style: st("display:flex;align-items:center;gap:8px;padding:7px 13px;border-radius:9px;background:#0a0612;border:1px solid #3dffa8;cursor:pointer;") }, h("span", { style: st("font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:1.5px;color:#3dffa8;") }, "▶ GUIDED TOUR")),
@@ -1088,7 +1087,7 @@ class App extends Component {
               h("div", { style: st("font-size:10.5px;color:#7a6aa8;margin-top:2px;") }, curT.full))),
           h("div", { style: st("flex:1;font-size:12.5px;color:#cabbf0;line-height:1.45;") }, curT.blurb),
           h("div", { style: st(`flex:none;display:flex;align-items:center;gap:8px;padding:7px 13px;border-radius:9px;background:${curConceptColor}1a;border:1px solid ${curConceptColor};`) },
-            h("span", { style: st("font-family:'JetBrains Mono',monospace;font-size:8.5px;letter-spacing:1.5px;color:#9d8fd6;") }, "STARRING"),
+            h("span", { style: st("font-family:'JetBrains Mono',monospace;font-size:8.5px;letter-spacing:1.5px;color:#9d8fd6;") }, "LENS"),
             h("span", { style: st(`font-family:'JetBrains Mono',monospace;font-weight:700;font-size:11px;color:${curConceptColor};`) }, curT.tag)),
           h("div", { title: "Curated inference mode", style: st("flex:none;display:flex;align-items:center;gap:7px;padding:7px 11px;border-radius:9px;background:#0a0612;border:1px solid #2c2350;font-family:'JetBrains Mono',monospace;") },
             h("span", { style: st("font-size:8.5px;letter-spacing:1.3px;color:#7a6aa8;") }, curT.expectation === "lesson" ? "LESSON" : "MSA"),
@@ -1101,18 +1100,16 @@ class App extends Component {
 
           lensRail.rail,
 
-          h("section", { style: st("grid-column:2;grid-row:1;position:relative;display:flex;align-items:center;justify-content:center;min-height:0;min-width:0;overflow:hidden;background:radial-gradient(circle at 50% 42%,#101a30,#070b16);") },
+          h("section", { style: st(st2.molFull ? "position:fixed;inset:0;z-index:60;display:flex;align-items:center;justify-content:center;overflow:hidden;background:radial-gradient(circle at 50% 42%,#101a30,#070b16);" : "grid-column:2;grid-row:1;position:relative;display:flex;align-items:center;justify-content:center;min-height:0;min-width:0;overflow:hidden;background:radial-gradient(circle at 50% 42%,#101a30,#070b16);") },
             lensRail.chips,
-            h(MolPlayfield, { pdb: realA && realA.pdb, referenceCa: this.referenceCa(), frameCa: realA && realA.ca, pdbId: !realA ? curT.pdb : undefined, fallbackSequence: curT.seq, frame: realA, lens: curT.concept, activeLenses: activeLensIds, lensModel: realLensModel, selectedResidues: st2.selectedPae ? [st2.selectedPae.i + 1, st2.selectedPae.j + 1] : [], colorMode: st2.colorMode }),
+            h("button", { onClick: () => this.setState((s2) => ({ molFull: !s2.molFull })), title: st2.molFull ? "Exit fullscreen" : "Fullscreen the structure viewport", style: st("position:absolute;top:14px;right:14px;z-index:8;width:30px;height:30px;border-radius:8px;background:rgba(10,14,26,.86);border:1px solid #25304a;color:#9d8fd6;cursor:pointer;font-size:13px;line-height:1;") }, st2.molFull ? "✕" : "⛶"),
+            h(MolPlayfield, { pdb: realA && realA.pdb, referenceCa: this.referenceCa(), frameCa: realA && realA.ca, pdbId: !realA ? curT.pdb : undefined, fallbackSequence: curT.seq, frame: realA, lens: curT.concept, activeLenses: activeLensIds, lensModel: realLensModel, frames: hasReal ? realFrames : null, frameIndex: st2.realIndex, selectedResidues: st2.selectedPae ? [st2.selectedPae.i + 1, st2.selectedPae.j + 1] : [], reflected: st2.reflected, showInit: st2.showInit, colorMode: st2.colorMode }),
             h("div", { style: st("position:absolute;bottom:14px;left:14px;z-index:6;padding:8px 11px;border-radius:8px;background:rgba(10,14,26,.82);border:1px solid #25304a;") },
               h("div", { style: st("display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:6px;") },
                 h("div", { style: st("font-family:'JetBrains Mono',monospace;font-size:8px;letter-spacing:1.5px;color:#7a85a0;") }, legend.title),
                 h("button", { onClick: () => this.setColorMode(), title: "Toggle structure coloring between secondary structure and per-residue confidence", style: st("padding:2px 6px;border-radius:5px;background:#17132b;border:1px solid #4a3d72;color:#cabbf0;font-family:'JetBrains Mono',monospace;font-size:8px;cursor:pointer;") }, st2.colorMode === "ss" ? "SHOW pLDDT" : "SHOW SS")),
               h("div", { style: st("display:flex;align-items:center;gap:10px;") }, legend.items.map((L, i) => h("div", { key: i, style: st("display:flex;align-items:center;gap:5px;") }, h("span", { style: st(`width:${L.w};height:8px;border-radius:2px;background:${L.color};`) }), h("span", { style: st("font-family:'JetBrains Mono',monospace;font-size:9px;color:#c4ccde;") }, L.label))))),
-            h("div", { style: st("position:absolute;bottom:14px;right:14px;z-index:6;padding:6px 11px;border-radius:8px;background:rgba(10,14,26,.82);border:1px solid #25304a;font-family:'JetBrains Mono',monospace;font-size:9.5px;color:#8b95ad;pointer-events:none;") },
-              hasReal
-                ? h("span", null, "LOCALCOLABFOLD · ", h("span", { style: st("color:#3dffa8;font-weight:700;") }, "REAL PDB"), " · REF ", curT.pdb)
-                : h("span", null, "RCSB · ", h("span", { style: st("color:#37d6ff;font-weight:700;") }, "REAL PDB FROM START"), " · ", curT.pdb))),
+            null),
 
           h("aside", { style: st("grid-row:1;border-left:1px solid #2c2350;display:flex;flex-direction:column;min-height:0;background:linear-gradient(180deg,#150f30,#0e0a22);overflow-y:auto;") },
             h("div", { style: st("flex:none;padding:16px;border-bottom:1px solid #2c2350;") },
@@ -1146,11 +1143,13 @@ class App extends Component {
 
           h("footer", { style: st("grid-column:2 / 4;grid-row:2;min-width:0;border-top:1px solid #2c2350;background:linear-gradient(180deg,#150f30,#0e0a22);") },
             st2.loading || st2.error ? this.renderJobPopup() : h("div", { style: st("height:100%;display:flex;align-items:center;gap:14px;padding:0 24px;") },
-              h("button", { onClick: () => this.stepBack(), style: st(flip) }, "◀"),
-              h("button", { onClick: () => this.runFold(curT.seq, false), disabled: st2.loading, style: st(`flex:none;height:46px;padding:0 24px;border-radius:11px;background:${st2.loading ? C.bg3 : "linear-gradient(135deg,#3dffa8,#2fd6ff)"};border:none;color:${st2.loading ? C.mid : "#08060f"};font-family:'JetBrains Mono',monospace;font-weight:800;font-size:13px;letter-spacing:1px;cursor:${st2.loading ? "default" : "pointer"};box-shadow:${st2.loading ? "none" : "0 0 18px rgba(61,255,168,.4)"};`) }, hasReal ? "▶ REFOLD ACTUAL" : "▶ RUN ACTUAL FOLD"),
-              h("button", { onClick: () => this.stepFwd(), style: st(flip) }, "▶"),
-              hasReal ? h("button", { onClick: () => this.toggleRealPlayback(), title: "Loop real saved recycle PDB snapshots; this is inference refinement, not physical folding time.", style: st(`flex:none;height:46px;padding:0 13px;border-radius:11px;background:${st2.realPlaying ? "linear-gradient(135deg,#b06bff,#2fd6ff)" : C.bg3};border:1px solid ${st2.realPlaying ? C.cyan : C.borderHi};color:${st2.realPlaying ? "#08060f" : C.hi};font-family:'JetBrains Mono',monospace;font-weight:800;font-size:11px;letter-spacing:.8px;cursor:pointer;`) }, st2.realPlaying ? "Ⅱ LOOP" : "↔ LOOP") : null,
-              h("button", { onClick: () => this.setFrame(0), style: st(flip.replace(C.hi, C.mid)) }, "↺"),
+              hasReal ? h("button", { onClick: () => this.stepBack(), style: st(flip) }, "◀") : null,
+              h("button", { onClick: () => this.runFold(curT.seq, false), disabled: st2.loading, style: st(`flex:none;height:46px;padding:0 24px;border-radius:11px;background:${st2.loading ? C.bg3 : "linear-gradient(135deg,#3dffa8,#2fd6ff)"};border:none;color:${st2.loading ? C.mid : "#08060f"};font-family:'JetBrains Mono',monospace;font-weight:800;font-size:13px;letter-spacing:1px;cursor:${st2.loading ? "default" : "pointer"};box-shadow:${st2.loading ? "none" : "0 0 18px rgba(61,255,168,.4)"};`) }, hasReal ? "Re-fold" : "Fold"),
+              hasReal ? h("button", { onClick: () => this.stepFwd(), style: st(flip) }, "▶") : null,
+              hasReal ? h("button", { onClick: () => this.toggleRealPlayback(), title: "Loop real saved recycle PDB snapshots; this is inference refinement, not physical folding time.", style: st(`flex:none;height:46px;padding:0 13px;border-radius:11px;background:${st2.realPlaying ? "linear-gradient(135deg,#b06bff,#2fd6ff)" : C.bg3};border:1px solid ${st2.realPlaying ? C.cyan : C.borderHi};color:${st2.realPlaying ? "#08060f" : C.hi};font-family:'JetBrains Mono',monospace;font-weight:800;font-size:11px;letter-spacing:.8px;cursor:pointer;`) }, st2.realPlaying ? "Pause" : "Loop") : null,
+              activeLensIds.includes("fape") ? h("button", { onClick: () => this.setState((s2) => ({ reflected: !s2.reflected })), title: "Reflect to the mirror image: every distance stays identical, but the handedness flips and FAPE jumps. Biology is chiral.", style: st(`flex:none;height:46px;padding:0 13px;border-radius:11px;background:${st2.reflected ? "linear-gradient(135deg,#ff4fd8,#ffb347)" : C.bg3};border:1px solid ${st2.reflected ? C.magenta : C.borderHi};color:${st2.reflected ? "#08060f" : C.hi};font-family:'JetBrains Mono',monospace;font-weight:800;font-size:11px;letter-spacing:.8px;cursor:pointer;`) }, st2.reflected ? "⇋ Mirrored" : "⇋ Reflect") : null,
+              hasReal ? h("button", { onClick: () => this.setState((s2) => ({ showInit: !s2.showInit })), title: "Begin playback from AF2's collapsed initialization - a labeled bookend showing the model's starting point. AF2 does not fold from an unfolded chain.", style: st(`flex:none;height:46px;padding:0 13px;border-radius:11px;background:${st2.showInit ? "rgba(176,107,255,.18)" : C.bg3};border:1px solid ${st2.showInit ? C.purple : C.borderHi};color:${st2.showInit ? C.hi : C.mid};font-family:'JetBrains Mono',monospace;font-weight:800;font-size:11px;letter-spacing:.8px;cursor:pointer;`) }, st2.showInit ? "⦿ Init on" : "⦿ Init") : null,
+              hasReal ? h("button", { onClick: () => this.setFrame(0), style: st(flip.replace(C.hi, C.mid)) }, "↺") : null,
               h("div", { style: st("flex:1;min-width:0;display:flex;flex-direction:column;gap:7px;") },
                 h("div", { style: st("display:flex;justify-content:space-between;font-family:'JetBrains Mono',monospace;font-size:10px;color:#8a7cba;") },
                   h("span", null, (hasReal ? "AF2 RECYCLE LOOP · " : "TRAJECTORY · ") + frameLabel),
@@ -1162,7 +1161,7 @@ class App extends Component {
       st2.view === "custom" ? h("main", { style: st("flex:1;display:grid;grid-template-columns:336px 1fr 300px;min-height:0;") },
         h("aside", { style: st("border-right:1px solid #2c2350;display:flex;flex-direction:column;min-height:0;background:linear-gradient(180deg,#150f30,#0e0a22);") },
           h("div", { style: st("flex:none;padding:18px 18px 12px;") },
-            h("div", { style: st("font-family:'JetBrains Mono',monospace;font-weight:700;letter-spacing:2px;font-size:11px;color:#9d8fd6;") }, "FIY · FOLD IT YOURSELF"),
+            h("div", { style: st("font-family:'JetBrains Mono',monospace;font-weight:700;letter-spacing:2px;font-size:11px;color:#9d8fd6;") }, "Custom sequence"),
             h("div", { style: st("font-size:11.5px;color:#6f6298;margin-top:6px;line-height:1.5;") }, "Paste a one-letter amino-acid sequence and run the engine. Each saved recycle PDB loads into the same Mol* playfield.")),
           h("div", { style: st("flex:none;padding:0 18px;") },
             h("textarea", { "aria-label": "Amino acid sequence", onChange: (e) => this.setSeq(e.target.value), value: cf.seq, spellCheck: false, placeholder: "MKTAYIAKQR...", style: st("width:100%;height:108px;resize:none;border-radius:10px;background:#0a0612;border:1px solid #4a3d72;color:#3dffa8;font-family:'JetBrains Mono',monospace;font-size:13px;letter-spacing:1px;line-height:1.6;padding:11px 12px;outline:none;") }),
@@ -1172,7 +1171,7 @@ class App extends Component {
               h("div", { style: st("display:flex;justify-content:space-between;font-family:'JetBrains Mono',monospace;font-size:10px;color:#8a7cba;margin-bottom:5px;") }, h("span", null, "ENGINE")),
               h("select", { "aria-label": "Prediction engine", value: st2.engine, onChange: (e) => this.setState({ engine: e.target.value }), style: st("width:100%;padding:8px 10px;border-radius:8px;background:#0a0612;border:1px solid #4a3d72;color:#cabbf0;font-family:'JetBrains Mono',monospace;font-size:11px;") }, engines.map((cap) => h("option", { key: cap.id, value: cap.id, disabled: cap.available === false }, (cap.label || cap.id) + (cap.available === false ? " (missing)" : ""))))),
             h("div", { style: st("display:flex;gap:8px;margin-top:14px;") },
-              h("button", { onClick: () => this.runFold(cf.seq, true), disabled: cf.running, style: st(`flex:1;padding:11px;border-radius:10px;border:none;cursor:pointer;font-family:${mono};font-weight:800;font-size:13px;letter-spacing:1px;background:${cf.running ? C.bg3 : "linear-gradient(135deg,#3dffa8,#2fd6ff)"};color:${cf.running ? C.mid : "#08060f"};box-shadow:${cf.running ? "none" : "0 0 16px rgba(61,255,168,.35)"};`) }, cf.running ? "◔ FOLDING…" : cf.done ? "▶ RE-FOLD" : "▶ RUN INFERENCE"),
+              h("button", { onClick: () => this.runFold(cf.seq, true), disabled: cf.running, style: st(`flex:1;padding:11px;border-radius:10px;border:none;cursor:pointer;font-family:${mono};font-weight:800;font-size:13px;letter-spacing:1px;background:${cf.running ? C.bg3 : "linear-gradient(135deg,#3dffa8,#2fd6ff)"};color:${cf.running ? C.mid : "#08060f"};box-shadow:${cf.running ? "none" : "0 0 16px rgba(61,255,168,.35)"};`) }, cf.running ? "Folding…" : cf.done ? "Re-fold" : "Fold"),
               st2.loading ? h("button", { onClick: () => this.cancelJob(), style: st("flex:none;padding:0 14px;border-radius:10px;background:#1d1640;border:1px solid #4a3d72;color:#ff9db0;font-family:'JetBrains Mono',monospace;font-size:11px;cursor:pointer;") }, "CANCEL")
                 : h("button", { onClick: () => this.resetCustom(), style: st("flex:none;width:46px;border-radius:10px;background:#1d1640;border:1px solid #4a3d72;color:#9d8fd6;font-size:15px;cursor:pointer;") }, "↺"))),
           h("div", { style: st("flex:none;padding:16px 18px 8px;") },
@@ -1188,8 +1187,8 @@ class App extends Component {
 
         h("section", { style: st("position:relative;display:flex;align-items:center;justify-content:center;min-height:0;min-width:0;overflow:hidden;background:radial-gradient(circle at 30% 25%,rgba(47,214,255,.10),transparent 45%),radial-gradient(circle at 75% 70%,rgba(255,79,216,.10),transparent 45%),radial-gradient(circle at 50% 50%,#181030,#0a0718);") },
           h("div", { style: st(`position:absolute;top:16px;left:16px;z-index:6;font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:1px;color:${cf.done ? C.green : cf.running ? C.cyan : C.mid};`) }, stageLabel),
-          hasReal ? h("button", { onClick: () => this.toggleRealPlayback(), title: "Loop real saved recycle PDB snapshots; this is inference refinement, not physical folding time.", style: st(`position:absolute;top:14px;right:14px;z-index:7;padding:8px 11px;border-radius:8px;background:${st2.realPlaying ? "linear-gradient(135deg,#b06bff,#2fd6ff)" : "rgba(10,14,26,.86)"};border:1px solid ${st2.realPlaying ? C.cyan : "#25304a"};color:${st2.realPlaying ? "#08060f" : "#9d8fd6"};font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:800;letter-spacing:.8px;cursor:pointer;`) }, st2.realPlaying ? "Ⅱ AF2 LOOP" : "↔ AF2 LOOP") : null,
-          h(MolPlayfield, { pdb: realA && realA.pdb, referenceCa: this.referenceCa(), frameCa: realA && realA.ca, frame: realA, fallbackSequence: cf.seq, lens: "recycling", activeLenses: ["recycling"], lensModel: realLensModel, selectedResidues: st2.selectedPae ? [st2.selectedPae.i + 1, st2.selectedPae.j + 1] : [], colorMode: st2.colorMode, emptyLabel: "Paste a sequence, then run inference to replace this preview with real recycle PDB frames." }),
+          hasReal ? h("button", { onClick: () => this.toggleRealPlayback(), title: "Loop real saved recycle PDB snapshots; this is inference refinement, not physical folding time.", style: st(`position:absolute;top:14px;right:14px;z-index:7;padding:8px 11px;border-radius:8px;background:${st2.realPlaying ? "linear-gradient(135deg,#b06bff,#2fd6ff)" : "rgba(10,14,26,.86)"};border:1px solid ${st2.realPlaying ? C.cyan : "#25304a"};color:${st2.realPlaying ? "#08060f" : "#9d8fd6"};font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:800;letter-spacing:.8px;cursor:pointer;`) }, st2.realPlaying ? "Pause" : "Loop") : null,
+          h(MolPlayfield, { pdb: realA && realA.pdb, referenceCa: this.referenceCa(), frameCa: realA && realA.ca, frame: realA, fallbackSequence: cf.seq, lens: "recycling", activeLenses: ["recycling"], lensModel: realLensModel, frames: hasReal ? realFrames : null, frameIndex: st2.realIndex, selectedResidues: st2.selectedPae ? [st2.selectedPae.i + 1, st2.selectedPae.j + 1] : [], reflected: st2.reflected, showInit: st2.showInit, colorMode: st2.colorMode, emptyLabel: "Paste a sequence, then run inference to replace this preview with real recycle PDB frames." }),
           h("div", { style: st("position:absolute;bottom:14px;left:50%;transform:translateX(-50%);z-index:6;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1px;color:#6f6298;text-align:center;") }, hasReal ? `REAL RECYCLE SNAPSHOTS ${st2.realIndex + 1}/${realFrames.length} · ${truthLabels.superposeNote}` : "DRAG TO ROTATE")),
 
         h("aside", { style: st("border-left:1px solid #2c2350;display:flex;flex-direction:column;min-height:0;background:linear-gradient(180deg,#150f30,#0e0a22);overflow-y:auto;") },

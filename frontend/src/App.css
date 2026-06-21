@@ -303,3 +303,22 @@ button:focus-visible, textarea:focus-visible, select:focus-visible { outline: 2p
   color: #cabbf0 !important;
   border-color: #25304a !important;
 }
+
+/* #1/#6 — hide Mol*'s built-in hover/selection label boxes. They popped in as
+   out-of-theme boxes ("Polymer 1 | Recycle 1 | Model 1 | A | MET 1 ...") that
+   overlapped our own legends. Our lens caption + gradient/SS legends carry the
+   meaning, so the raw Mol* readout is just clutter in a teaching view. */
+.molstar-dark-host .msp-highlight-info,
+.molstar-dark-host .msp-highlight-info-additional,
+.molstar-dark-host .msp-hover-box-wrapper,
+.molstar-dark-host .msp-hover-box-body,
+.molstar-dark-host .msp-highlight-toast-wrapper {
+  display: none !important;
+}
+
+/* Hide Mol*'s built-in trajectory "Model N/M" stepper and the viewport button
+   bar (VR/settings/etc). Playback is driven by our own controls; drag still
+   rotates. (Our own fullscreen button lives in the app chrome.) */
+.molstar-dark-host .msp-traj-controls,
+.molstar-dark-host .msp-viewport-controls-buttons,
+.molstar-dark-host .msp-animation-viewport-controls { display: none !important; }

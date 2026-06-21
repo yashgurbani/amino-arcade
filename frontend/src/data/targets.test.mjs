@@ -13,10 +13,9 @@ test("every target carries a non-empty notice (what-to-watch line)", () => {
   assert.ok(arcadeTargets().every((t) => typeof t.notice === "string" && t.notice.length > 0));
 });
 
-test("ordering is success-first: first target is a success, GFP lesson is last", () => {
-  const targets = arcadeTargets();
-  assert.equal(targets[0].expectation, "success");
-  assert.equal(targets[targets.length - 1].name, "GFP");
+test("targets are ordered top-to-bottom by the live-lens sequence", () => {
+  const order = arcadeTargets().map((t) => t.concept);
+  assert.deepEqual(order, ["coevolution", "triangle", "ipa", "fape", "recycling", "all"]);
 });
 
 test("GFP remains the explicit single-sequence lesson target", () => {

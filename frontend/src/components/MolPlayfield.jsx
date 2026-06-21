@@ -6,6 +6,7 @@ import { createRoot } from "react-dom/client";
 import { fetchReferencePdb } from "../lib/api";
 import { CONTACT_DELTA_STYLES, visibleContactDeltaCells } from "../lib/contactDeltaView";
 import { groupResidueColors, residueColorLegend } from "../lib/lensColors";
+import { localFrameSegmentForLength } from "../lib/localFrameSegment";
 import { superposePdbToReference } from "../lib/superpose";
 import { st, withTimeout, fallbackPdb } from "../lib/viewer";
 
@@ -13,28 +14,67 @@ import { st, withTimeout, fallbackPdb } from "../lib/viewer";
 const LENS_COLORS = { coevolution: "#2fd6ff", triangle: "#3dffa8", ipa: "#b06bff", fape: "#ff4fd8", recycling: "#ffb347" };
 
 class MolPlayfield extends Component {
-  constructor(props) { super(props); this.host = null; this.plugin = null; this.roots = new WeakMap(); this.state = { mode: "loading", lensLabel: "" }; this._mounted = false; this._loadSeq = 0; this._contactLineRefs = []; }
+  constructor(props) { super(props); this.host = null; this.plugin = null; this.roots = new WeakMap(); this.state = { mode: "loading", lensLabel: "", initMorphing: false }; this._mounted = false; this._loadSeq = 0; this._contactLineRefs = []; this._trajKey = null; this._trajFailed = false; this._trajModelRef = null; this._trajCount = 0; this._trajTransforms = null; this._initOffset = 0; }
   componentDidMount() { this._mounted = true; this.load({ resetCamera: true }); }
   componentDidUpdate(prev) {
-    const previewSequenceChanged = !this.props.pdb && !this.props.pdbId && prev.fallbackSequence !== this.props.fallbackSequence;
-      if (prev.pdb !== this.props.pdb || prev.pdbId !== this.props.pdbId || previewSequenceChanged) {
-      const frameToFrame = !!(prev.pdb && this.props.pdb);
-      this.load({ resetCamera: !frameToFrame });
-    } else if (prev.colorMode !== this.props.colorMode) this.applyVisualTheme();
-    if ((prev.activeLenses || []).join(",") !== (this.props.activeLenses || []).join(",") || (prev.selectedResidues || []).join(",") !== (this.props.selectedResidues || []).join(",") || prev.lens !== this.props.lens || prev.lensModel !== this.props.lensModel) this.applyLensAnnotations();
-    if (prev.lensModel !== this.props.lensModel || (prev.activeLenses || []).join(",") !== (this.props.activeLenses || []).join(",") || prev.lens !== this.props.lens) { this.applyColorTheme(); this.applyResidueOverlay(); }
-    if (prev.lensModel !== this.props.lensModel || (prev.activeLenses || []).join(",") !== (this.props.activeLenses || []).join(",")) this.applyContactLines();
+    const frames = this.props.frames;
+    const trajCapable = Array.isArray(frames) && frames.length > 1 && !this._trajFailed;
+    const lensesChanged = (prev.activeLenses || []).join(",") !== (this.props.activeLenses || []).join(",");
+    const selChanged = (prev.selectedResidues || []).join(",") !== (this.props.selectedResidues || []).join(",");
+    const reflectChanged = prev.reflected !== this.props.reflected || prev.showInit !== this.props.showInit;
+    if (trajCapable) {
+      const key = this.framesKey(frames);
+      if (key !== this._trajKey || reflectChanged) { const newRun = key !== this._trajKey; this._trajKey = key; this.loadTrajectory(frames, this.props.frameIndex || 0, newRun || (prev.showInit === false && this.props.showInit)); return; }
+      if (prev.frameIndex !== this.props.frameIndex) { this.stepModel(this.props.frameIndex || 0); return; }
+    } else {
+      this._trajKey = null;
+      const previewSequenceChanged = !this.props.pdb && !this.props.pdbId && prev.fallbackSequence !== this.props.fallbackSequence;
+      if (prev.pdb !== this.props.pdb || prev.pdbId !== this.props.pdbId || previewSequenceChanged || reflectChanged) {
+        const frameToFrame = !!(prev.pdb && this.props.pdb) && !reflectChanged;
+        this.load({ resetCamera: !frameToFrame, quiet: frameToFrame });
+        return;
+      }
+      if (prev.colorMode !== this.props.colorMode) this.applyVisualTheme();
+    }
+    if (lensesChanged || selChanged || prev.lens !== this.props.lens || prev.lensModel !== this.props.lensModel) this.applyLensAnnotations();
+    if (prev.lensModel !== this.props.lensModel || lensesChanged || prev.lens !== this.props.lens || prev.colorMode !== this.props.colorMode) { this.applyColorTheme(); this.applyResidueOverlay(); }
+    if (lensesChanged) this.applySpin();
+    if (prev.lensModel !== this.props.lensModel || lensesChanged) this.applyContactLines();
   }
   componentWillUnmount() { this._mounted = false; this._loadSeq += 1; try { if (this.plugin && this.plugin.dispose) this.plugin.dispose(); } catch (e) { void e; } this.plugin = null; this._contactLineRefs = []; }
+  mirrorPdb(text) {
+    return String(text || "").split("\n").map((l) => {
+      if (l.startsWith("ATOM") || l.startsWith("HETATM")) {
+        const x = parseFloat(l.slice(30, 38));
+        if (!Number.isNaN(x)) return l.slice(0, 30) + (-x).toFixed(3).padStart(8) + l.slice(38);
+      }
+      return l;
+    }).join("\n");
+  }
+
+  // IPA in the main viewer: gently auto-spin so "no privileged orientation" is
+  // something you watch, not just read. Spin only while the IPA lens is active.
+  async applySpin() {
+    if (!this.plugin) return;
+    const spin = (this.props.activeLenses || []).includes("ipa");
+    try {
+      const { PluginCommands } = await import("molstar/lib/mol-plugin/commands");
+      await PluginCommands.Canvas3D.SetSettings(this.plugin, { settings: (props) => {
+        if (props.trackball) props.trackball.animate = spin ? { name: "spin", params: { speed: 0.6 } } : { name: "off", params: {} };
+      } });
+    } catch (e) { void e; }
+  }
+
   async resolvePdb() {
     // A real recycle-frame PDB string wins; otherwise pull the reference
     // crystal structure for this target from RCSB by its PDB id.
     if (this.props.pdb) {
       // Superpose each recycle frame onto the final recycle (alignment only) so
       // playback shows internal refinement, not global tumbling. See superpose.js.
-      const text = this.props.referenceCa
+      let text = this.props.referenceCa
         ? superposePdbToReference(this.props.pdb, this.props.referenceCa, this.props.frameCa || null)
         : this.props.pdb;
+      if (this.props.reflected) text = this.mirrorPdb(text);
       return { text, label: (this.props.frame && this.props.frame.label) || "recycle.pdb", source: "real" };
     }
     if (this.props.pdbId) {
@@ -56,7 +96,10 @@ class MolPlayfield extends Component {
         import("molstar/lib/mol-plugin/commands"),
         import("molstar/lib/mol-util/color"),
       ]);
-      await PluginCommands.Canvas3D.SetSettings(this.plugin, { settings: (props) => { props.renderer.backgroundColor = Color(0x050812); } });
+      await PluginCommands.Canvas3D.SetSettings(this.plugin, { settings: (props) => {
+        props.renderer.backgroundColor = Color(0x050812);
+        if (props.camera && props.camera.helper && props.camera.helper.axes) props.camera.helper.axes = { name: "off", params: {} };
+      } });
     } catch (err) {
       console.info("Mol* dark canvas unavailable", err);
     }
@@ -101,9 +144,7 @@ class MolPlayfield extends Component {
   // real, visceral demo - rotate the protein, the local readout is unchanged -
   // lives in the interactive scene (open with the lens ⤢ button).
   localFrameSegment() {
-    const n = Math.max(1, (this.props.frame?.plddt?.length || this.props.fallbackSequence?.length || 30));
-    const start = Math.max(1, Math.round(n * 0.45));
-    return Array.from({ length: Math.min(6, n) }, (_, i) => start + i).filter((r) => r >= 1 && r <= n);
+    return localFrameSegmentForLength(this.props.frame?.plddt?.length || this.props.fallbackSequence?.length || 30);
   }
 
   // Three residues forming a triangle for the Triangle lens. Prefer a real
@@ -240,7 +281,7 @@ class MolPlayfield extends Component {
     const presets = {
       coevolution: [2, clamp(n / 3), clamp((2 * n) / 3), n - 1],
       triangle: [3, clamp(n / 2), n - 2],
-      ipa: [clamp(n * 0.25), clamp(n * 0.25) + 1, clamp(n * 0.75), clamp(n * 0.75) + 1],
+      ipa: localFrameSegmentForLength(n),
       fape: [clamp(n / 2) - 2, clamp(n / 2) - 1, clamp(n / 2), clamp(n / 2) + 1, clamp(n / 2) + 2],
       recycling: [1, clamp(n / 2), n],
     };
@@ -258,7 +299,7 @@ class MolPlayfield extends Component {
 
   async applyLensAnnotations() {
     const { active, residues } = this.lensResidues();
-    const label = active.length && residues.length ? `${active.join(" + ")} · residues ${residues.slice(0, 8).join(", ")}${residues.length > 8 ? "…" : ""}${this.props.lensModel ? "" : " · illustrative"}` : "";
+    const label = active.length ? `${active.join(" + ")}${this.props.lensModel ? "" : " · illustrative"}` : "";
     if (this.state.lensLabel !== label) this.setState({ lensLabel: label });
     if (!this.plugin) return;
     if (!residues.length) {
@@ -285,11 +326,11 @@ class MolPlayfield extends Component {
       console.info("Mol* lens annotation unavailable", err);
     }
   }
-  async load({ resetCamera = true } = {}) {
+  async load({ resetCamera = true, quiet = false } = {}) {
     const loadSeq = ++this._loadSeq;
     const isCurrent = () => this._mounted && loadSeq === this._loadSeq;
     try {
-      this.setState({ mode: "loading" });
+      if (!quiet) this.setState({ mode: "loading" });
       if (this.plugin) {
         await this.plugin.clear().catch(() => undefined);
       }
@@ -313,8 +354,8 @@ class MolPlayfield extends Component {
             layout: { initial: { isExpanded: false, showControls: false } },
             config: [
               ...(defaultSpec.config || []),
-              [PluginConfig.Viewport.ShowExpand, true],
-              [PluginConfig.Viewport.ShowControls, true],
+              [PluginConfig.Viewport.ShowExpand, false],
+              [PluginConfig.Viewport.ShowControls, false],
               [PluginConfig.Viewport.ShowSelectionMode, false],
               [PluginConfig.Viewport.ShowAnimation, false],
             ],
@@ -346,6 +387,7 @@ class MolPlayfield extends Component {
       await this.applyVisualTheme();
       await this.applyLensAnnotations();
       await this.applyContactLines();
+      await this.applySpin();
       if (resetCamera && this.plugin.canvas3d) this.plugin.canvas3d.requestCameraReset();
       if (isCurrent()) this.setState({ mode: "molstar" });
     } catch (err) {
@@ -353,11 +395,114 @@ class MolPlayfield extends Component {
       if (isCurrent()) this.setState({ mode: "error" });
     }
   }
+  framesKey(frames) {
+    if (!Array.isArray(frames) || !frames.length) return null;
+    return `${frames.length}:${frames[0]?.label || ""}:${(frames[0]?.pdb || "").length}:${(frames[frames.length - 1]?.pdb || "").length}`;
+  }
+
+  // Collapse every atom toward the centroid: a labelled visual proxy for AF2's
+  // real "black hole" initialization (all residues start at one point). It is a
+  // bookend, NOT a physical unfolded chain - AF2 does not fold through it.
+  collapsedModel(atomLines) {
+    const coords = atomLines.filter((l) => l.startsWith("ATOM") || l.startsWith("HETATM")).map((l) => [parseFloat(l.slice(30, 38)), parseFloat(l.slice(38, 46)), parseFloat(l.slice(46, 54))]).filter((c) => c.every((v) => !Number.isNaN(v)));
+    if (!coords.length) return null;
+    const cx = coords.reduce((t, c) => t + c[0], 0) / coords.length;
+    const cy = coords.reduce((t, c) => t + c[1], 0) / coords.length;
+    const cz = coords.reduce((t, c) => t + c[2], 0) / coords.length;
+    const k = 0.06;
+    return atomLines.map((l) => {
+      if (!(l.startsWith("ATOM") || l.startsWith("HETATM"))) return l;
+      const x = parseFloat(l.slice(30, 38)), y = parseFloat(l.slice(38, 46)), z = parseFloat(l.slice(46, 54));
+      if ([x, y, z].some((v) => Number.isNaN(v))) return l;
+      return l.slice(0, 30) + (cx + (x - cx) * k).toFixed(3).padStart(8) + (cy + (y - cy) * k).toFixed(3).padStart(8) + (cz + (z - cz) * k).toFixed(3).padStart(8) + l.slice(54);
+    }).join("\n");
+  }
+
+  buildMultiModelPdb(frames) {
+    const ref = this.props.referenceCa || null;
+    const real = frames.map((f) => {
+      let text = ref ? superposePdbToReference(f.pdb, ref, f.ca || null) : f.pdb;
+      if (this.props.reflected) text = this.mirrorPdb(text);
+      return String(text || "").split("\n").filter((l) => l.startsWith("ATOM") || l.startsWith("HETATM") || l.startsWith("TER"));
+    });
+    const models = [];
+    this._initOffset = 0;
+    if (this.props.showInit !== false && real.length) {
+      const collapsed = this.collapsedModel(real[0]);
+      if (collapsed) { models.push(collapsed); this._initOffset = 1; }
+    }
+    real.forEach((atoms) => models.push(atoms.join("\n")));
+    return models.map((m, i) => `MODEL     ${i + 1}\n${m}\nENDMDL`).join("\n") + "\nEND\n";
+  }
+
+  async loadTrajectory(frames, index, morph) {
+    const loadSeq = ++this._loadSeq;
+    const isCurrent = () => this._mounted && loadSeq === this._loadSeq;
+    try {
+      if (!this.host) return;
+      if (!this.plugin) { await this.load({ resetCamera: true }); }
+      if (!this.plugin) throw new Error("no plugin");
+      const multi = this.buildMultiModelPdb(frames);
+      const { StateTransforms } = await import("molstar/lib/mol-plugin-state/transforms");
+      if (!isCurrent()) return;
+      await this.plugin.clear();
+      const data = await withTimeout(this.plugin.builders.data.rawData({ data: multi, label: "recycle trajectory" }), 8000, "traj raw");
+      if (!isCurrent()) return;
+      const trajectory = await withTimeout(this.plugin.builders.structure.parseTrajectory(data, "pdb"), 8000, "traj parse");
+      if (!isCurrent()) return;
+      const model = await this.plugin.builders.structure.createModel(trajectory);
+      const structure = await this.plugin.builders.structure.createStructure(model);
+      await this.plugin.builders.structure.representation.applyPreset(structure, "polymer-cartoon");
+      this._trajModelRef = model.ref;
+      this._trajCount = frames.length + this._initOffset;
+      this._trajTransforms = StateTransforms;
+      const target = Math.max(0, Math.min(this._trajCount - 1, (index || 0) + this._initOffset));
+      if (morph && this._initOffset) {
+        this.setState({ initMorphing: true });
+        for (let m = 0; m <= target; m += 1) {
+          if (!isCurrent()) return;
+          await this.plugin.build().to(this._trajModelRef).update(StateTransforms.Model.ModelFromTrajectory, (old) => ({ ...old, modelIndex: m })).commit({ doNotLogTiming: true });
+          await new Promise((r) => setTimeout(r, 130));
+        }
+        if (isCurrent()) this.setState({ initMorphing: false });
+      } else if (target) {
+        await this.stepModel(index, true);
+      }
+      await this.applyDarkCanvas();
+      await this.applyVisualTheme();
+      await this.applyLensAnnotations();
+      await this.applyContactLines();
+      await this.applySpin();
+      // No camera reset here: keep the preview's camera so Fold doesn't snap.
+      if (isCurrent()) this.setState({ mode: "molstar" });
+    } catch (err) {
+      console.info("Mol* trajectory unavailable; falling back to per-frame load", err);
+      this._trajFailed = true;
+      this._trajModelRef = null;
+      this.load({ resetCamera: false, quiet: true });
+    }
+  }
+
+  async stepModel(index, internal) {
+    if (!this.plugin || !this._trajModelRef || !this._trajTransforms) { if (!internal) this.load({ resetCamera: false, quiet: true }); return; }
+    try {
+      const T = this._trajTransforms;
+      const idx = Math.max(0, Math.min(this._trajCount - 1, (index || 0) + this._initOffset));
+      await this.plugin.build().to(this._trajModelRef).update(T.Model.ModelFromTrajectory, (old) => ({ ...old, modelIndex: idx })).commit({ doNotLogTiming: true });
+      if (!internal) { await this.applyResidueOverlay(); await this.applyLensAnnotations(); await this.applyContactLines(); }
+    } catch (err) {
+      console.info("Mol* model step failed; falling back", err);
+      this._trajFailed = true;
+      this.load({ resetCamera: false, quiet: true });
+    }
+  }
+
   render() {
     const colorLegend = residueColorLegend(this.props.lensModel?.residueColors);
     return h("div", { "data-testid": "mol-playfield", "data-color-mode": this.props.colorMode || "plddt", style: st("position:absolute;inset:0;background:radial-gradient(circle at 48% 44%,#101a30,#050812 62%,#03040a);transition:background .25s ease;") },
       h("div", { ref: (el) => (this.host = el), className: "molstar-dark-host", style: st(`position:absolute;inset:0;background:#050812;visibility:${this.state.mode === "molstar" ? "visible" : "hidden"};`) }),
-      this.state.lensLabel ? h("div", { "data-testid": "mol-lens-annotation", style: st("position:absolute;left:12px;top:12px;z-index:5;max-width:70%;padding:6px 9px;border-radius:8px;background:rgba(10,6,18,.78);border:1px solid rgba(61,255,168,.38);color:#bfffe5;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.4px;pointer-events:none;") }, "MOL* LENS · ", this.state.lensLabel) : null,
+      this.state.initMorphing ? h("div", { "data-testid": "mol-init-note", style: st("position:absolute;left:50%;top:12px;transform:translateX(-50%);z-index:6;max-width:84%;padding:5px 12px;border-radius:7px;background:rgba(10,6,18,.82);border:1px solid #4a3d72;color:#cabbf0;font-family:'JetBrains Mono',monospace;font-size:9.5px;letter-spacing:.4px;text-align:center;pointer-events:none;") }, "AF2 init: residues start collapsed at one point (not an unfolded chain) — the structure module places them") : null,
+      this.state.lensLabel ? h("div", { "data-testid": "mol-lens-annotation", style: st("position:absolute;left:50%;bottom:10px;transform:translateX(-50%);z-index:5;max-width:80%;padding:3px 10px;border-radius:6px;background:rgba(10,6,18,.55);color:#9fb0c8;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:.5px;white-space:nowrap;pointer-events:none;") }, this.state.lensLabel) : null,
       colorLegend ? h("div", { "data-testid": "mol-residue-color-legend", style: st("position:absolute;right:12px;bottom:12px;z-index:5;width:220px;padding:8px 10px;border-radius:8px;background:rgba(10,6,18,.82);border:1px solid rgba(255,255,255,.16);color:#d9d2ef;font-family:'JetBrains Mono',monospace;font-size:9px;pointer-events:none;") },
         h("div", { style: st("margin-bottom:6px;letter-spacing:.5px;") }, colorLegend.title),
         h("div", { style: st(`height:7px;border-radius:4px;background:linear-gradient(90deg,${colorLegend.lowColor},${colorLegend.highColor});`) }),
