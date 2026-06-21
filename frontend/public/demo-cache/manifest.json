@@ -6,7 +6,7 @@
     {
       "target": "1",
       "name": "Salivary amylase",
-      "url": "/demo-cache/1-salivary-amylase.json",
+      "url": "demo-cache/1-salivary-amylase.json",
       "sequence_sha256": "698e32c77817660170991ea834aceddb0899ad0ca41288d2612fba8f4e5a0e72",
       "pdb": "1SMD",
       "pdb_chain": "A",
@@ -22,7 +22,7 @@
     {
       "target": "2",
       "name": "GFP",
-      "url": "/demo-cache/2-gfp.json",
+      "url": "demo-cache/2-gfp.json",
       "sequence_sha256": "cb510b908de0ac5320f8862097d1df509ba225c88e7be8d14154a17c6328f04a",
       "pdb": "1EMA",
       "pdb_chain": "A",
@@ -38,7 +38,7 @@
     {
       "target": "3",
       "name": "Myoglobin",
-      "url": "/demo-cache/3-myoglobin.json",
+      "url": "demo-cache/3-myoglobin.json",
       "sequence_sha256": "4e1e5bdd96abfd0c314159fd2797177dfc06ef65103f9f7eda3489f61ca98353",
       "pdb": "1MBN",
       "pdb_chain": "A",
@@ -54,7 +54,7 @@
     {
       "target": "4",
       "name": "Carbonic anhydrase",
-      "url": "/demo-cache/4-carbonic-anhydrase.json",
+      "url": "demo-cache/4-carbonic-anhydrase.json",
       "sequence_sha256": "e6a24c903c1ef211037c64a6835a8a484f48b17be1cae50d6998913f21acf7d4",
       "pdb": "1CA2",
       "pdb_chain": "A",
@@ -70,7 +70,7 @@
     {
       "target": "5",
       "name": "Phosphoglycerate kinase",
-      "url": "/demo-cache/5-phosphoglycerate-kinase.json",
+      "url": "demo-cache/5-phosphoglycerate-kinase.json",
       "sequence_sha256": "dc196abe084628dcec8f565564e708c07a686855c9991898f10001da340f4d8e",
       "pdb": "3PGK",
       "pdb_chain": "A",
@@ -86,7 +86,7 @@
     {
       "target": "6",
       "name": "Adenylate kinase",
-      "url": "/demo-cache/6-adenylate-kinase.json",
+      "url": "demo-cache/6-adenylate-kinase.json",
       "sequence_sha256": "c7fb9fc96e9e0aabc1a454ba36086dc00a2fc71387e8d5fb44a50d830b27d697",
       "pdb": "4AKE",
       "pdb_chain": "A",
@@ -102,7 +102,7 @@
     {
       "target": "L1",
       "name": "Lysozyme",
-      "url": "/demo-cache/L1-lysozyme.json",
+      "url": "demo-cache/L1-lysozyme.json",
       "sequence_sha256": "eaf1f8d7f5bf78bbefe1100d912a09893361c57dda057f634adb5c5af6dfe79c",
       "pdb": "1LYZ",
       "pdb_chain": "A",
@@ -118,7 +118,7 @@
     {
       "target": "L2",
       "name": "Calmodulin",
-      "url": "/demo-cache/L2-calmodulin.json",
+      "url": "demo-cache/L2-calmodulin.json",
       "sequence_sha256": "787e521525941a7d26a5d483ac12f3df74ff3d38c70b225272c4815777f80763",
       "pdb": "1CLL",
       "pdb_chain": "A",
@@ -134,7 +134,7 @@
     {
       "target": "L3",
       "name": "Ras GTPase",
-      "url": "/demo-cache/L3-ras-gtpase.json",
+      "url": "demo-cache/L3-ras-gtpase.json",
       "sequence_sha256": "e1c75be895b35ce7dea99b16e7c89c9f0ae4683bf786f332abd1d2ac1e014e77",
       "pdb": "5P21",
       "pdb_chain": "A",
@@ -150,7 +150,7 @@
     {
       "target": "L4",
       "name": "Ubiquitin",
-      "url": "/demo-cache/L4-ubiquitin.json",
+      "url": "demo-cache/L4-ubiquitin.json",
       "sequence_sha256": "233b4b0b8c4616095bc3249f9375fc345d32af7deaef07117d0383c51d6f19aa",
       "pdb": "1UBQ",
       "pdb_chain": "A",
@@ -166,7 +166,7 @@
     {
       "target": "L5",
       "name": "Villin headpiece",
-      "url": "/demo-cache/L5-villin-headpiece.json",
+      "url": "demo-cache/L5-villin-headpiece.json",
       "sequence_sha256": "4611fbd99ec215fde112c852a42435eb79d59906457ef09d8bf5116732b6a587",
       "pdb": "1VII",
       "pdb_chain": "A",
@@ -182,7 +182,7 @@
     {
       "target": "L6",
       "name": "TIM barrel",
-      "url": "/demo-cache/L6-tim-barrel.json",
+      "url": "demo-cache/L6-tim-barrel.json",
       "sequence_sha256": "4866c0d272a9e6bd3e33c0295c15a2b403cc2d467d932c3f993e131f11024e72",
       "pdb": "1TIM",
       "pdb_chain": "A",
@@ -198,7 +198,7 @@
     {
       "target": "L7",
       "name": "Alpha-synuclein",
-      "url": "/demo-cache/L7-alpha-synuclein.json",
+      "url": "demo-cache/L7-alpha-synuclein.json",
       "sequence_sha256": "9a06387610edd099466d614941c42a433f444feb6a8f25375bb0b6ad8ec9c6f4",
       "pdb": "1XQ8",
       "pdb_chain": "A",
@@ -214,7 +214,7 @@
     {
       "target": "L8",
       "name": "Prion protein",
-      "url": "/demo-cache/L8-prion-protein.json",
+      "url": "demo-cache/L8-prion-protein.json",
       "sequence_sha256": "e9fabd1be6558af0889a2f20c3fc2c5001331b314eca14a80f46c17e8fa36808",
       "pdb": "1QLX",
       "pdb_chain": "A",
@@ -230,7 +230,7 @@
     {
       "target": "L9",
       "name": "p53 DNA-binding domain",
-      "url": "/demo-cache/L9-p53-dna-binding-domain.json",
+      "url": "demo-cache/L9-p53-dna-binding-domain.json",
       "sequence_sha256": "700cdde5298f373d2480688c981ded492d546b0eb3cabe404c16f1d6532cd130",
       "pdb": "1TUP",
       "pdb_chain": "A",
@@ -246,7 +246,7 @@
     {
       "target": "L10",
       "name": "HIV-1 protease",
-      "url": "/demo-cache/L10-hiv-1-protease.json",
+      "url": "demo-cache/L10-hiv-1-protease.json",
       "sequence_sha256": "7933b1f14c15eaf02d7380194e89894e342895cbb65aa13d9f7f9172072c23f6",
       "pdb": "1HSG",
       "pdb_chain": "A",
