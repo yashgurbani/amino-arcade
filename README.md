@@ -4,7 +4,7 @@
 
 # Amino Arcade
 
-**A local-first workbench for learning how AlphaFold2 reasons about protein structure.**
+**Learn how AlphaFold2 works by seeing it, and by running real inference on your own GPU.**
 
 [![CI](https://github.com/yashgurbani/amino-arcade/actions/workflows/ci.yml/badge.svg)](https://github.com/yashgurbani/amino-arcade/actions/workflows/ci.yml)
 [![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=white)](https://react.dev/)
@@ -18,18 +18,19 @@
 
 ---
 
-Amino Arcade is an interactive way to read the AlphaFold2 paper ([Jumper et al., 2021](#citation)). Ideas you normally meet as equations become scenes you can drive with sliders, shown next to real structures you can rotate and inspect.
+AlphaFold2 changed structural biology, but the paper behind it ([Jumper et al., 2021](#citation)) is dense and the model can feel like a black box. Amino Arcade is here to open that box: to make AlphaFold visual, approachable, and something you learn by doing rather than only reading.
 
-It runs in the browser and works without a GPU using bundled results. When you want real predictions, it connects to local AlphaFold-family inference. Throughout, it keeps one rule: a teaching simulation is never dressed up as a biological prediction. Every structure on screen says where it came from.
+The ideas at the model's core become interactive scenes instead of equations: coevolution, triangle updates, invariant point attention, FAPE, and recycling. Each one is tied to a real protein with a clear takeaway, so you rotate the structure, read its confidence, and watch what that piece of the model actually does.
 
+You can start in the browser with nothing to install, exploring bundled results. If you have a GPU, you can go further: point Amino Arcade at a local [LocalColabFold](https://github.com/YoshitakaMo/localcolabfold) install and fold real sequences on your own machine. Jobs run locally through `colabfold_batch`, and the genuine AlphaFold-family output, the pLDDT, the PAE, and the recycle frames, flows straight into the same lenses. That is the whole idea: learn the AlphaFold paper by running it yourself, on hardware you already have.
 
 ## What you can do
 
-- **Manipulate the geometry that makes the model work.** Toggle coevolution, triangle updates, invariant point attention, FAPE, chirality, and recycling on real and teaching structures.
-- **Read a structure honestly.** Mol* renders each protein with pLDDT coloring, a PAE map, contacts, recycle frames, and click-to-highlight residues.
-- **Start with zero install.** Bundled LocalColabFold results give you the full experience in demo mode, no Python backend required.
-- **Run real inference when ready.** A guarded LocalColabFold adapter handles queued jobs, cancellation, logs, cache reuse, and reproducible run manifests.
-- **Learn the vocabulary first.** A short Protein Basics path walks from amino acids to "what AlphaFold predicts and what it leaves out" before you touch the architecture.
+- **Fold real proteins on your own GPU.** Point Amino Arcade at a local LocalColabFold install and run genuine AlphaFold-family inference. Jobs queue locally with logs, cancellation, cache reuse, and reproducible run manifests.
+- **Watch the paper's ideas play out on your own results.** The pLDDT, PAE, contacts, and recycle frames from your runs feed five interactive lenses: coevolution, triangle updates, invariant point attention, FAPE, and recycling.
+- **Inspect any structure in depth.** Mol* renders each protein with pLDDT coloring, a PAE map, contacts, recycle frames, and click-to-highlight residues.
+- **Start instantly, no GPU required.** Bundled results open in the browser, so anyone can explore the concepts before installing anything.
+- **Begin from the basics.** A short Protein Basics path goes from amino acids to what AlphaFold predicts and what it leaves out.
 
 ## Learning lenses
 
@@ -104,7 +105,7 @@ The interactive API docs are at http://127.0.0.1:8011/docs.
 
 ## Inference engines
 
-The backend exposes several engines behind one adapter boundary. They differ in what they actually compute, so each result is labeled accordingly.
+The point of Amino Arcade is real local inference through LocalColabFold. The other engines exist so you are never blocked: bundled results for an instant start, a fast simulator for the concept scenes, and OpenMM for cleaning up an existing structure. Every result is labeled with what it actually is, so a quick demo is never mistaken for a real prediction.
 
 | Engine | What it is | Scientific status |
 | --- | --- | --- |
