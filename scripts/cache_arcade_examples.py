@@ -67,7 +67,7 @@ def _write_demo_result(target: dict[str, Any], result: dict[str, Any], verdict: 
     return {
         "target": target["n"],
         "name": target["name"],
-        "url": f"/demo-cache/{filename}",
+        "url": f"demo-cache/{filename}",
         "sequence_sha256": _sha256(target["seq"]),
         "pdb": target["pdb"],
         "pdb_chain": target.get("pdbChain"),
