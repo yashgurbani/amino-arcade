@@ -316,9 +316,15 @@ button:focus-visible, textarea:focus-visible, select:focus-visible { outline: 2p
   display: none !important;
 }
 
-/* Hide Mol*'s built-in trajectory "Model N/M" stepper and the viewport button
-   bar (VR/settings/etc). Playback is driven by our own controls; drag still
-   rotates. (Our own fullscreen button lives in the app chrome.) */
+/* Hide Mol*'s built-in trajectory "Model N/M" stepper. Keep the side viewport
+   controls visible for reset/screenshot/settings, but suppress XR/VR. Playback
+   is still driven by our own controls. */
 .molstar-dark-host .msp-traj-controls,
-.molstar-dark-host .msp-viewport-controls-buttons,
 .molstar-dark-host .msp-animation-viewport-controls { display: none !important; }
+
+.molstar-dark-host button[title*="VR"],
+.molstar-dark-host button[title*="XR"],
+.molstar-dark-host button[title*="Virtual Reality"],
+.molstar-dark-host button[title*="Augmented Reality"],
+.molstar-dark-host [title*="VR"],
+.molstar-dark-host [title*="XR"] { display: none !important; }

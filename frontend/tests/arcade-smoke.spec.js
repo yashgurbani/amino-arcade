@@ -106,29 +106,32 @@ test("arcade shell, lens interaction, and real recycle frames", async ({ page })
   await page.goto("/");
 
   await expect(page.locator(".arcade-shell")).toBeVisible();
-  await expect(page.getByText("Myoglobin", { exact: true })).toBeVisible();
-  await expect(page.getByText("TARGET").locator("..")).toContainText("153 aa");
-  await expect(page.getByText("REAL PDB FROM START")).toBeVisible();
-  await expect.poll(() => rcsbRequests.some((url) => url.endsWith("/1MBN"))).toBe(true);
-  await page.getByRole("button", { name: "6", exact: true }).click();
+  await expect(page.locator("header")).toContainText("AMINO ARCADE");
+  await expect(page.locator("header")).toContainText("FIY");
+  await expect(page.locator("header")).not.toContainText("SCORE");
+  await expect(page.getByText("Salivary amylase", { exact: true })).toBeVisible();
+  await expect.poll(() => rcsbRequests.some((url) => url.endsWith("/1SMD"))).toBe(true);
+  await page.getByTitle("result inspector, downloads, and backend specifics").click();
+  await expect(page.getByText("TARGET", { exact: true }).locator("..")).toContainText("496 aa");
+  await expect(page.getByText("MSA MODE", { exact: true }).locator("..")).toContainText("MMseqs2");
+  await page.getByRole("button", { name: "✕" }).click();
+  await page.getByRole("button", { name: "2", exact: true }).click();
   await expect(page.getByText("GFP", { exact: true })).toBeVisible();
-  await expect(page.getByText("TARGET").locator("..")).toContainText("236 aa");
   await expect.poll(() => rcsbRequests.some((url) => url.endsWith("/1EMA"))).toBe(true);
   await expect(page.getByRole("button", { name: "Triangle Updates pair-table" })).toBeVisible();
   await expect(page.getByTestId("mol-lens-annotation")).toContainText("triangle");
   await page.locator('button[title="Open Triangle Updates lens overlay"]').click();
   await expect(page.getByText("FULL SCENE")).toBeVisible();
   await page.getByRole("button", { name: "✕" }).click();
-  await page.getByRole("button", { name: "3", exact: true }).click();
+  await page.getByRole("button", { name: "5", exact: true }).click();
   await expect(page.getByText("Phosphoglycerate kinase", { exact: true })).toBeVisible();
-  await expect(page.getByText("TARGET").locator("..")).toContainText("416 aa");
   await expect.poll(() => rcsbRequests.some((url) => url.endsWith("/3PGK"))).toBe(true);
 
   await expect(page.getByTestId("mol-playfield")).toHaveAttribute("data-color-mode", "ss");
   await expect(page.getByText("Loading Mol*…")).toHaveCount(0, { timeout: 20000 });
   await expect.poll(async () => page.locator(".molstar-dark-host .msp-btn").count()).toBeGreaterThan(0);
 
-  await page.getByRole("button", { name: /RUN ACTUAL FOLD/i }).click();
+  await page.getByRole("button", { name: "Fold", exact: true }).click();
   expect(jobPosts[0].num_recycle).toBe(8);
   expect(jobPosts[0].num_models).toBe(1);
   expect(jobPosts[0].msa_mode).toBe("mmseqs2_uniref_env");
@@ -137,7 +140,7 @@ test("arcade shell, lens interaction, and real recycle frames", async ({ page })
   await expect(page.getByTestId("job-popup")).toContainText("recycles requested: 8");
   await expect(page.getByTestId("job-popup")).toContainText("models requested: 1");
   await expect(page.getByTestId("job-popup")).toContainText("MSA mode: mmseqs2_uniref_env");
-  await expect(page.getByText("REAL PDB")).toBeVisible();
+  await expect(page.getByText("Real LocalColabFold recycle snapshots")).toBeVisible();
   await expect(page.getByText("pLDDT + Δ RMSD OVER RECYCLES")).toBeVisible();
   await expect(page.getByText("BOND OUTLIERS", { exact: true })).toBeVisible();
   await expect(page.getByText("Cα-FAPE (Å)", { exact: true })).toBeVisible();

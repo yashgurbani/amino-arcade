@@ -14,17 +14,17 @@ import { st, withTimeout, fallbackPdb } from "../lib/viewer";
 const LENS_COLORS = { coevolution: "#2fd6ff", triangle: "#3dffa8", ipa: "#b06bff", fape: "#ff4fd8", recycling: "#ffb347" };
 
 class MolPlayfield extends Component {
-  constructor(props) { super(props); this.host = null; this.plugin = null; this.roots = new WeakMap(); this.state = { mode: "loading", lensLabel: "", initMorphing: false }; this._mounted = false; this._loadSeq = 0; this._contactLineRefs = []; this._trajKey = null; this._trajFailed = false; this._trajModelRef = null; this._trajCount = 0; this._trajTransforms = null; this._initOffset = 0; }
+  constructor(props) { super(props); this.host = null; this.plugin = null; this.roots = new WeakMap(); this.state = { mode: "loading", lensLabel: "" }; this._mounted = false; this._loadSeq = 0; this._contactLineRefs = []; this._trajKey = null; this._trajFailed = false; this._trajModelRef = null; this._trajCount = 0; this._trajTransforms = null; this._initOffset = 0; }
   componentDidMount() { this._mounted = true; this.load({ resetCamera: true }); }
   componentDidUpdate(prev) {
     const frames = this.props.frames;
     const trajCapable = Array.isArray(frames) && frames.length > 1 && !this._trajFailed;
     const lensesChanged = (prev.activeLenses || []).join(",") !== (this.props.activeLenses || []).join(",");
     const selChanged = (prev.selectedResidues || []).join(",") !== (this.props.selectedResidues || []).join(",");
-    const reflectChanged = prev.reflected !== this.props.reflected || prev.showInit !== this.props.showInit;
+    const reflectChanged = prev.reflected !== this.props.reflected;
     if (trajCapable) {
       const key = this.framesKey(frames);
-      if (key !== this._trajKey || reflectChanged) { const newRun = key !== this._trajKey; this._trajKey = key; this.loadTrajectory(frames, this.props.frameIndex || 0, newRun || (prev.showInit === false && this.props.showInit)); return; }
+      if (key !== this._trajKey || reflectChanged) { const newRun = key !== this._trajKey; this._trajKey = key; this.loadTrajectory(frames, this.props.frameIndex || 0, newRun); return; }
       if (prev.frameIndex !== this.props.frameIndex) { this.stepModel(this.props.frameIndex || 0); return; }
     } else {
       this._trajKey = null;
@@ -98,6 +98,11 @@ class MolPlayfield extends Component {
       ]);
       await PluginCommands.Canvas3D.SetSettings(this.plugin, { settings: (props) => {
         props.renderer.backgroundColor = Color(0x050812);
+        props.postprocessing = {
+          ...props.postprocessing,
+          shadow: { name: "on", params: { steps: 2, maxDistance: 4, tolerance: 1 } },
+          outline: { name: "on", params: { scale: 1, threshold: 0.33, color: Color(0x000000), includeTransparent: true } },
+        };
         if (props.camera && props.camera.helper && props.camera.helper.axes) props.camera.helper.axes = { name: "off", params: {} };
       } });
     } catch (err) {
@@ -345,8 +350,8 @@ class MolPlayfield extends Component {
       if (!isCurrent() || !this.host) return;
       if (!this.plugin) {
         const defaultSpec = DefaultPluginUISpec();
-        // Full Mol* UI: viewport tools (reset camera, axes, fullscreen,
-        // screenshot, settings) + zoom/rotate, like the AlphaFold Server viewer.
+        // Full Mol* viewport tools restored: reset camera, screenshot,
+        // fullscreen/settings/lighting. XR/VR is disabled below.
         this.plugin = await withTimeout(createPluginUI({
           target: this.host,
           spec: {
@@ -354,8 +359,7 @@ class MolPlayfield extends Component {
             layout: { initial: { isExpanded: false, showControls: false } },
             config: [
               ...(defaultSpec.config || []),
-              [PluginConfig.Viewport.ShowExpand, false],
-              [PluginConfig.Viewport.ShowControls, false],
+              [PluginConfig.Viewport.ShowXR, false],
               [PluginConfig.Viewport.ShowSelectionMode, false],
               [PluginConfig.Viewport.ShowAnimation, false],
             ],
@@ -400,24 +404,6 @@ class MolPlayfield extends Component {
     return `${frames.length}:${frames[0]?.label || ""}:${(frames[0]?.pdb || "").length}:${(frames[frames.length - 1]?.pdb || "").length}`;
   }
 
-  // Collapse every atom toward the centroid: a labelled visual proxy for AF2's
-  // real "black hole" initialization (all residues start at one point). It is a
-  // bookend, NOT a physical unfolded chain - AF2 does not fold through it.
-  collapsedModel(atomLines) {
-    const coords = atomLines.filter((l) => l.startsWith("ATOM") || l.startsWith("HETATM")).map((l) => [parseFloat(l.slice(30, 38)), parseFloat(l.slice(38, 46)), parseFloat(l.slice(46, 54))]).filter((c) => c.every((v) => !Number.isNaN(v)));
-    if (!coords.length) return null;
-    const cx = coords.reduce((t, c) => t + c[0], 0) / coords.length;
-    const cy = coords.reduce((t, c) => t + c[1], 0) / coords.length;
-    const cz = coords.reduce((t, c) => t + c[2], 0) / coords.length;
-    const k = 0.06;
-    return atomLines.map((l) => {
-      if (!(l.startsWith("ATOM") || l.startsWith("HETATM"))) return l;
-      const x = parseFloat(l.slice(30, 38)), y = parseFloat(l.slice(38, 46)), z = parseFloat(l.slice(46, 54));
-      if ([x, y, z].some((v) => Number.isNaN(v))) return l;
-      return l.slice(0, 30) + (cx + (x - cx) * k).toFixed(3).padStart(8) + (cy + (y - cy) * k).toFixed(3).padStart(8) + (cz + (z - cz) * k).toFixed(3).padStart(8) + l.slice(54);
-    }).join("\n");
-  }
-
   buildMultiModelPdb(frames) {
     const ref = this.props.referenceCa || null;
     const real = frames.map((f) => {
@@ -427,10 +413,6 @@ class MolPlayfield extends Component {
     });
     const models = [];
     this._initOffset = 0;
-    if (this.props.showInit !== false && real.length) {
-      const collapsed = this.collapsedModel(real[0]);
-      if (collapsed) { models.push(collapsed); this._initOffset = 1; }
-    }
     real.forEach((atoms) => models.push(atoms.join("\n")));
     return models.map((m, i) => `MODEL     ${i + 1}\n${m}\nENDMDL`).join("\n") + "\nEND\n";
   }
@@ -501,7 +483,6 @@ class MolPlayfield extends Component {
     const colorLegend = residueColorLegend(this.props.lensModel?.residueColors);
     return h("div", { "data-testid": "mol-playfield", "data-color-mode": this.props.colorMode || "plddt", style: st("position:absolute;inset:0;background:radial-gradient(circle at 48% 44%,#101a30,#050812 62%,#03040a);transition:background .25s ease;") },
       h("div", { ref: (el) => (this.host = el), className: "molstar-dark-host", style: st(`position:absolute;inset:0;background:#050812;visibility:${this.state.mode === "molstar" ? "visible" : "hidden"};`) }),
-      this.state.initMorphing ? h("div", { "data-testid": "mol-init-note", style: st("position:absolute;left:50%;top:12px;transform:translateX(-50%);z-index:6;max-width:84%;padding:5px 12px;border-radius:7px;background:rgba(10,6,18,.82);border:1px solid #4a3d72;color:#cabbf0;font-family:'JetBrains Mono',monospace;font-size:9.5px;letter-spacing:.4px;text-align:center;pointer-events:none;") }, "AF2 init: residues start collapsed at one point (not an unfolded chain) — the structure module places them") : null,
       this.state.lensLabel ? h("div", { "data-testid": "mol-lens-annotation", style: st("position:absolute;left:50%;bottom:10px;transform:translateX(-50%);z-index:5;max-width:80%;padding:3px 10px;border-radius:6px;background:rgba(10,6,18,.55);color:#9fb0c8;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:.5px;white-space:nowrap;pointer-events:none;") }, this.state.lensLabel) : null,
       colorLegend ? h("div", { "data-testid": "mol-residue-color-legend", style: st("position:absolute;right:12px;bottom:12px;z-index:5;width:220px;padding:8px 10px;border-radius:8px;background:rgba(10,6,18,.82);border:1px solid rgba(255,255,255,.16);color:#d9d2ef;font-family:'JetBrains Mono',monospace;font-size:9px;pointer-events:none;") },
         h("div", { style: st("margin-bottom:6px;letter-spacing:.5px;") }, colorLegend.title),

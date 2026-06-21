@@ -72,7 +72,7 @@ class App extends Component {
     custom: { seq: "NLYIQWLKDGGPSSGRPPPS", t: 0, running: false, done: false, logs: [], elapsed: 0 },
     target: 0, frame: 5, rot: 0.6, rotX: -0.18, spin: true, hoverRes: null, colorMode: "ss", selectedPae: null,
     overlays: { coevolution: false, triangle: false, ipa: false, fape: false, recycling: false },
-    reflected: false, showInit: true, mapMode: "contact",
+    reflected: false, mapMode: "contact",
     expanded: null, showScore: false, showInfo: false,
     coev: { view: "cov", guess: null }, tri: this.initTri(), ipa: { thetaG: 0, naive: false }, fape: { reflected: false, naive: false }, rec: this.initRec(),
     // backend
@@ -987,8 +987,6 @@ class App extends Component {
 
     const f = this.frameDataT(st2.frame / 5, this.stageSeed()), fp = this.fapeData();
     const meanP = hasReal && this.realPlddt() ? meanOf(this.realPlddt()) : f.meanP;
-    const score = hasReal && this.realPlddt() ? Math.round(meanOf(this.realPlddt())) : this.scoreAtT(st2.frame / 5, this.stageSeed());
-
     const legend = st2.colorMode === "ss"
       ? { title: "SECONDARY STRUCTURE", items: [{ color: "#e64980", label: "α-helix", w: "14px" }, { color: "#f4b400", label: "β-strand", w: "14px" }, { color: "#9aa6b8", label: "loop", w: "14px" }] }
       : { title: "MODEL CONFIDENCE · pLDDT", items: [{ color: "#1f6feb", label: "Very high", w: "9px" }, { color: "#25c7d9", label: "Confident", w: "9px" }, { color: "#f4e409", label: "Low", w: "9px" }, { color: "#f28c28", label: "Very low", w: "9px" }] };
@@ -1060,17 +1058,14 @@ class App extends Component {
     return h("div", { style: st("position:fixed;inset:0;display:flex;flex-direction:column;font-family:'Roboto',sans-serif;background:radial-gradient(circle at 50% -10%,#1a1438,#0b0820 55%,#070510);color:#f3f0ff;overflow:hidden;"), className: "arcade-shell" },
 
       h("header", { style: st("flex:none;height:54px;display:flex;align-items:center;gap:18px;padding:0 20px;background:linear-gradient(180deg,#1c1640,#140e2c);border-bottom:1px solid #322757;z-index:30;") },
-        h("div", { style: st("display:flex;align-items:center;gap:11px;") },
-          h("div", { style: st("line-height:1;") }, h("div", { style: st("font-family:'JetBrains Mono',monospace;font-weight:800;letter-spacing:3px;font-size:16px;") }, "AMINO ARCADE"))),
+        h("div", { style: st("display:flex;align-items:center;gap:11px;padding:7px 16px;border-radius:9px;background:#0a0612;border:1px solid #4a3d72;background-image:radial-gradient(circle,rgba(255,170,60,.12) 1px,transparent 1px);background-size:4px 4px;") },
+          h("div", { style: st("font-family:'JetBrains Mono',monospace;font-weight:900;letter-spacing:2.6px;font-size:18px;color:#ffb347;text-shadow:0 0 12px rgba(255,170,60,.85);animation:aa-flick 4s infinite;line-height:1;") }, "AMINO ARCADE")),
         h("div", { style: st("margin-left:6px;display:flex;background:#0a0612;border:1px solid #4a3d72;border-radius:9px;padding:4px;gap:4px;") },
           h("button", { onClick: () => this.setView("stage"), title: "Curated teaching targets", style: st(`padding:7px 13px;border-radius:7px;border:none;cursor:pointer;font-family:${mono};font-weight:700;font-size:11.5px;letter-spacing:1px;background:${st2.view === "stage" ? "linear-gradient(135deg,#3dffa8,#2fd6ff)" : "transparent"};color:${st2.view === "stage" ? "#08060f" : C.mid};`) }, "◉ ARCADE"),
-          h("button", { onClick: () => this.setView("custom"), title: "Fold It Yourself custom sequence mode", style: st(`padding:7px 13px;border-radius:7px;border:none;cursor:pointer;font-family:${mono};font-weight:700;font-size:11.5px;letter-spacing:1px;background:${st2.view === "custom" ? "linear-gradient(135deg,#b06bff,#ff4fd8)" : "transparent"};color:${st2.view === "custom" ? "#08060f" : C.mid};`) }, "Custom")),
+          h("button", { onClick: () => this.setView("custom"), title: "Fold It Yourself sequence mode", style: st(`padding:7px 13px;border-radius:7px;border:none;cursor:pointer;font-family:${mono};font-weight:700;font-size:11.5px;letter-spacing:1px;background:${st2.view === "custom" ? "linear-gradient(135deg,#b06bff,#ff4fd8)" : "transparent"};color:${st2.view === "custom" ? "#08060f" : C.mid};`) }, "FIY")),
         st2.view === "stage" ? h("div", { style: st("margin-left:4px;display:flex;gap:7px;") }, tg.map((t, i) => h("button", { key: i, onClick: () => this.selectTarget(i), style: st(`width:30px;height:30px;border-radius:8px;cursor:pointer;font-family:${mono};font-weight:800;font-size:13px;border:1px solid ${st2.target === i ? C.cyan : C.border};background:${st2.target === i ? "rgba(47,214,255,.18)" : "#0a0612"};color:${st2.target === i ? C.cyan : C.mid};box-shadow:${st2.target === i ? "0 0 12px rgba(47,214,255,.4)" : "none"};`) }, t.n))) : null,
         h("div", { style: st("flex:1;") }),
         h("button", { onClick: () => this.setState({ tourOpen: true }), title: "Guided tour: how AlphaFold turns a sequence into a structure (and what it is NOT)", style: st("display:flex;align-items:center;gap:8px;padding:7px 13px;border-radius:9px;background:#0a0612;border:1px solid #3dffa8;cursor:pointer;") }, h("span", { style: st("font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:1.5px;color:#3dffa8;") }, "▶ GUIDED TOUR")),
-        h("button", { onClick: () => this.setState({ showScore: true }), title: "how the score is computed", style: st("display:flex;align-items:center;gap:12px;padding:7px 16px;border-radius:9px;background:#0a0612;border:1px solid #4a3d72;cursor:pointer;background-image:radial-gradient(circle,rgba(255,170,60,.10) 1px,transparent 1px);background-size:4px 4px;") },
-          h("span", { style: st("font-family:'JetBrains Mono',monospace;font-size:8.5px;letter-spacing:2px;color:#7a6aa8;") }, "SCORE"),
-          h("span", { style: st("font-family:'JetBrains Mono',monospace;font-weight:800;font-size:24px;color:#ffb347;text-shadow:0 0 12px rgba(255,170,60,.8);animation:aa-flick 4s infinite;") }, score)),
         h("div", { title: "Active backend and local guardrail", style: st("display:flex;align-items:center;gap:7px;padding:7px 11px;border-radius:9px;background:#0a0612;border:1px solid #2c2350;font-family:'JetBrains Mono',monospace;font-size:9.5px;color:#9d8fd6;") },
           h("span", { style: st(`width:7px;height:7px;border-radius:50%;background:${st2.loading ? C.cyan : C.green};box-shadow:0 0 8px ${st2.loading ? C.cyan : C.green};`) }),
           h("span", null, `${st2.engine} · 768aa cap`)),
@@ -1088,13 +1083,7 @@ class App extends Component {
           h("div", { style: st("flex:1;font-size:12.5px;color:#cabbf0;line-height:1.45;") }, curT.blurb),
           h("div", { style: st(`flex:none;display:flex;align-items:center;gap:8px;padding:7px 13px;border-radius:9px;background:${curConceptColor}1a;border:1px solid ${curConceptColor};`) },
             h("span", { style: st("font-family:'JetBrains Mono',monospace;font-size:8.5px;letter-spacing:1.5px;color:#9d8fd6;") }, "LENS"),
-            h("span", { style: st(`font-family:'JetBrains Mono',monospace;font-weight:700;font-size:11px;color:${curConceptColor};`) }, curT.tag)),
-          h("div", { title: "Curated inference mode", style: st("flex:none;display:flex;align-items:center;gap:7px;padding:7px 11px;border-radius:9px;background:#0a0612;border:1px solid #2c2350;font-family:'JetBrains Mono',monospace;") },
-            h("span", { style: st("font-size:8.5px;letter-spacing:1.3px;color:#7a6aa8;") }, curT.expectation === "lesson" ? "LESSON" : "MSA"),
-            h("span", { style: st(`font-size:10px;font-weight:800;color:${curT.expectation === "lesson" ? C.amber : C.cyan};`) }, curT.msaMode === "single_sequence" ? "single-seq" : "MMseqs2")),
-          h("div", { title: "Inference sequence length", style: st("flex:none;display:flex;align-items:center;gap:7px;padding:7px 11px;border-radius:9px;background:#0a0612;border:1px solid #2c2350;font-family:'JetBrains Mono',monospace;") },
-            h("span", { style: st("font-size:8.5px;letter-spacing:1.3px;color:#7a6aa8;") }, "TARGET"),
-            h("span", { style: st("font-size:11px;font-weight:800;color:#3dffa8;") }, `${curT.seq.length} aa`))),
+            h("span", { style: st(`font-family:'JetBrains Mono',monospace;font-weight:700;font-size:11px;color:${curConceptColor};`) }, curT.tag))),
 
         h("main", { style: st(`flex:1;display:grid;grid-template-columns:252px 1fr 350px;grid-template-rows:minmax(0,1fr) ${st2.loading || st2.error ? "168px" : "92px"};min-height:0;`) },
 
@@ -1103,7 +1092,7 @@ class App extends Component {
           h("section", { style: st(st2.molFull ? "position:fixed;inset:0;z-index:60;display:flex;align-items:center;justify-content:center;overflow:hidden;background:radial-gradient(circle at 50% 42%,#101a30,#070b16);" : "grid-column:2;grid-row:1;position:relative;display:flex;align-items:center;justify-content:center;min-height:0;min-width:0;overflow:hidden;background:radial-gradient(circle at 50% 42%,#101a30,#070b16);") },
             lensRail.chips,
             h("button", { onClick: () => this.setState((s2) => ({ molFull: !s2.molFull })), title: st2.molFull ? "Exit fullscreen" : "Fullscreen the structure viewport", style: st("position:absolute;top:14px;right:14px;z-index:8;width:30px;height:30px;border-radius:8px;background:rgba(10,14,26,.86);border:1px solid #25304a;color:#9d8fd6;cursor:pointer;font-size:13px;line-height:1;") }, st2.molFull ? "✕" : "⛶"),
-            h(MolPlayfield, { pdb: realA && realA.pdb, referenceCa: this.referenceCa(), frameCa: realA && realA.ca, pdbId: !realA ? curT.pdb : undefined, fallbackSequence: curT.seq, frame: realA, lens: curT.concept, activeLenses: activeLensIds, lensModel: realLensModel, frames: hasReal ? realFrames : null, frameIndex: st2.realIndex, selectedResidues: st2.selectedPae ? [st2.selectedPae.i + 1, st2.selectedPae.j + 1] : [], reflected: st2.reflected, showInit: st2.showInit, colorMode: st2.colorMode }),
+            h(MolPlayfield, { pdb: realA && realA.pdb, referenceCa: this.referenceCa(), frameCa: realA && realA.ca, pdbId: !realA ? curT.pdb : undefined, fallbackSequence: curT.seq, frame: realA, lens: curT.concept, activeLenses: activeLensIds, lensModel: realLensModel, frames: hasReal ? realFrames : null, frameIndex: st2.realIndex, selectedResidues: st2.selectedPae ? [st2.selectedPae.i + 1, st2.selectedPae.j + 1] : [], reflected: st2.reflected, colorMode: st2.colorMode }),
             h("div", { style: st("position:absolute;bottom:14px;left:14px;z-index:6;padding:8px 11px;border-radius:8px;background:rgba(10,14,26,.82);border:1px solid #25304a;") },
               h("div", { style: st("display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:6px;") },
                 h("div", { style: st("font-family:'JetBrains Mono',monospace;font-size:8px;letter-spacing:1.5px;color:#7a85a0;") }, legend.title),
@@ -1148,7 +1137,6 @@ class App extends Component {
               hasReal ? h("button", { onClick: () => this.stepFwd(), style: st(flip) }, "▶") : null,
               hasReal ? h("button", { onClick: () => this.toggleRealPlayback(), title: "Loop real saved recycle PDB snapshots; this is inference refinement, not physical folding time.", style: st(`flex:none;height:46px;padding:0 13px;border-radius:11px;background:${st2.realPlaying ? "linear-gradient(135deg,#b06bff,#2fd6ff)" : C.bg3};border:1px solid ${st2.realPlaying ? C.cyan : C.borderHi};color:${st2.realPlaying ? "#08060f" : C.hi};font-family:'JetBrains Mono',monospace;font-weight:800;font-size:11px;letter-spacing:.8px;cursor:pointer;`) }, st2.realPlaying ? "Pause" : "Loop") : null,
               activeLensIds.includes("fape") ? h("button", { onClick: () => this.setState((s2) => ({ reflected: !s2.reflected })), title: "Reflect to the mirror image: every distance stays identical, but the handedness flips and FAPE jumps. Biology is chiral.", style: st(`flex:none;height:46px;padding:0 13px;border-radius:11px;background:${st2.reflected ? "linear-gradient(135deg,#ff4fd8,#ffb347)" : C.bg3};border:1px solid ${st2.reflected ? C.magenta : C.borderHi};color:${st2.reflected ? "#08060f" : C.hi};font-family:'JetBrains Mono',monospace;font-weight:800;font-size:11px;letter-spacing:.8px;cursor:pointer;`) }, st2.reflected ? "⇋ Mirrored" : "⇋ Reflect") : null,
-              hasReal ? h("button", { onClick: () => this.setState((s2) => ({ showInit: !s2.showInit })), title: "Begin playback from AF2's collapsed initialization - a labeled bookend showing the model's starting point. AF2 does not fold from an unfolded chain.", style: st(`flex:none;height:46px;padding:0 13px;border-radius:11px;background:${st2.showInit ? "rgba(176,107,255,.18)" : C.bg3};border:1px solid ${st2.showInit ? C.purple : C.borderHi};color:${st2.showInit ? C.hi : C.mid};font-family:'JetBrains Mono',monospace;font-weight:800;font-size:11px;letter-spacing:.8px;cursor:pointer;`) }, st2.showInit ? "⦿ Init on" : "⦿ Init") : null,
               hasReal ? h("button", { onClick: () => this.setFrame(0), style: st(flip.replace(C.hi, C.mid)) }, "↺") : null,
               h("div", { style: st("flex:1;min-width:0;display:flex;flex-direction:column;gap:7px;") },
                 h("div", { style: st("display:flex;justify-content:space-between;font-family:'JetBrains Mono',monospace;font-size:10px;color:#8a7cba;") },
@@ -1161,8 +1149,8 @@ class App extends Component {
       st2.view === "custom" ? h("main", { style: st("flex:1;display:grid;grid-template-columns:336px 1fr 300px;min-height:0;") },
         h("aside", { style: st("border-right:1px solid #2c2350;display:flex;flex-direction:column;min-height:0;background:linear-gradient(180deg,#150f30,#0e0a22);") },
           h("div", { style: st("flex:none;padding:18px 18px 12px;") },
-            h("div", { style: st("font-family:'JetBrains Mono',monospace;font-weight:700;letter-spacing:2px;font-size:11px;color:#9d8fd6;") }, "Custom sequence"),
-            h("div", { style: st("font-size:11.5px;color:#6f6298;margin-top:6px;line-height:1.5;") }, "Paste a one-letter amino-acid sequence and run the engine. Each saved recycle PDB loads into the same Mol* playfield.")),
+            h("div", { style: st("font-family:'JetBrains Mono',monospace;font-weight:700;letter-spacing:2px;font-size:11px;color:#9d8fd6;") }, "FIY sequence"),
+            h("div", { style: st("font-size:11.5px;color:#6f6298;margin-top:6px;line-height:1.5;") }, "Fold It Yourself: paste a one-letter amino-acid sequence and run the engine. Saved recycle PDBs load into the same Mol* playfield.")),
           h("div", { style: st("flex:none;padding:0 18px;") },
             h("textarea", { "aria-label": "Amino acid sequence", onChange: (e) => this.setSeq(e.target.value), value: cf.seq, spellCheck: false, placeholder: "MKTAYIAKQR...", style: st("width:100%;height:108px;resize:none;border-radius:10px;background:#0a0612;border:1px solid #4a3d72;color:#3dffa8;font-family:'JetBrains Mono',monospace;font-size:13px;letter-spacing:1px;line-height:1.6;padding:11px 12px;outline:none;") }),
             h("div", { style: st("display:flex;justify-content:space-between;margin-top:6px;font-family:'JetBrains Mono',monospace;font-size:10px;color:#6f6298;") }, h("span", null, cf.seq.length + " residues"), h("span", null, cf.seq.length < 6 ? "min 6" : "")),
@@ -1188,7 +1176,7 @@ class App extends Component {
         h("section", { style: st("position:relative;display:flex;align-items:center;justify-content:center;min-height:0;min-width:0;overflow:hidden;background:radial-gradient(circle at 30% 25%,rgba(47,214,255,.10),transparent 45%),radial-gradient(circle at 75% 70%,rgba(255,79,216,.10),transparent 45%),radial-gradient(circle at 50% 50%,#181030,#0a0718);") },
           h("div", { style: st(`position:absolute;top:16px;left:16px;z-index:6;font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:1px;color:${cf.done ? C.green : cf.running ? C.cyan : C.mid};`) }, stageLabel),
           hasReal ? h("button", { onClick: () => this.toggleRealPlayback(), title: "Loop real saved recycle PDB snapshots; this is inference refinement, not physical folding time.", style: st(`position:absolute;top:14px;right:14px;z-index:7;padding:8px 11px;border-radius:8px;background:${st2.realPlaying ? "linear-gradient(135deg,#b06bff,#2fd6ff)" : "rgba(10,14,26,.86)"};border:1px solid ${st2.realPlaying ? C.cyan : "#25304a"};color:${st2.realPlaying ? "#08060f" : "#9d8fd6"};font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:800;letter-spacing:.8px;cursor:pointer;`) }, st2.realPlaying ? "Pause" : "Loop") : null,
-          h(MolPlayfield, { pdb: realA && realA.pdb, referenceCa: this.referenceCa(), frameCa: realA && realA.ca, frame: realA, fallbackSequence: cf.seq, lens: "recycling", activeLenses: ["recycling"], lensModel: realLensModel, frames: hasReal ? realFrames : null, frameIndex: st2.realIndex, selectedResidues: st2.selectedPae ? [st2.selectedPae.i + 1, st2.selectedPae.j + 1] : [], reflected: st2.reflected, showInit: st2.showInit, colorMode: st2.colorMode, emptyLabel: "Paste a sequence, then run inference to replace this preview with real recycle PDB frames." }),
+          h(MolPlayfield, { pdb: realA && realA.pdb, referenceCa: this.referenceCa(), frameCa: realA && realA.ca, frame: realA, fallbackSequence: cf.seq, lens: "recycling", activeLenses: ["recycling"], lensModel: realLensModel, frames: hasReal ? realFrames : null, frameIndex: st2.realIndex, selectedResidues: st2.selectedPae ? [st2.selectedPae.i + 1, st2.selectedPae.j + 1] : [], reflected: st2.reflected, colorMode: st2.colorMode, emptyLabel: "Paste a sequence, then run inference to replace this preview with real recycle PDB frames." }),
           h("div", { style: st("position:absolute;bottom:14px;left:50%;transform:translateX(-50%);z-index:6;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1px;color:#6f6298;text-align:center;") }, hasReal ? `REAL RECYCLE SNAPSHOTS ${st2.realIndex + 1}/${realFrames.length} · ${truthLabels.superposeNote}` : "DRAG TO ROTATE")),
 
         h("aside", { style: st("border-left:1px solid #2c2350;display:flex;flex-direction:column;min-height:0;background:linear-gradient(180deg,#150f30,#0e0a22);overflow-y:auto;") },
@@ -1257,6 +1245,16 @@ class App extends Component {
               onRun: () => this.runPhysicsRelaxation(),
             })
             : h("div", null,
+              h("div", { style: st("margin-top:14px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;") },
+                h("div", { style: st(dmd) },
+                  h("div", { style: st("font-family:'JetBrains Mono',monospace;font-size:8.5px;letter-spacing:1px;color:#7a6aa8;") }, "TARGET"),
+                  h("div", { style: st("font-family:'JetBrains Mono',monospace;font-weight:800;font-size:18px;color:#3dffa8;") }, `${curT.seq.length} aa`)),
+                h("div", { style: st(dmd) },
+                  h("div", { style: st("font-family:'JetBrains Mono',monospace;font-size:8.5px;letter-spacing:1px;color:#7a6aa8;") }, curT.expectation === "lesson" ? "LESSON INPUT" : "MSA MODE"),
+                  h("div", { style: st(`font-family:'JetBrains Mono',monospace;font-weight:800;font-size:18px;color:${curT.expectation === "lesson" ? C.amber : C.cyan};`) }, curT.msaMode === "single_sequence" ? "single-seq" : "MMseqs2")),
+                h("div", { style: st(dmd) },
+                  h("div", { style: st("font-family:'JetBrains Mono',monospace;font-size:8.5px;letter-spacing:1px;color:#7a6aa8;") }, "PDB / LENS"),
+                  h("div", { style: st(`font-family:'JetBrains Mono',monospace;font-weight:800;font-size:18px;color:${curConceptColor};`) }, `${curT.pdb} · ${curT.tag}`))),
               h("p", { style: st("margin:14px 0 0;font-size:13.5px;line-height:1.6;color:#cabbf0;") }, hasReal
                 ? ((st2.result && st2.result.meta && st2.result.meta.trajectory_note) || "Each frame is a real LocalColabFold recycle PDB parsed as an inference-refinement frame and loaded into Mol*. Recycle frames are model refinement snapshots — not a measured physical folding pathway.")
                 : "Until you run a fold, every number comes from the Amino Arcade teaching model, not AlphaFold2 internals. The preview trajectory is representational iteration converging to a fixed point — not a movie of a protein folding in physical time."),
