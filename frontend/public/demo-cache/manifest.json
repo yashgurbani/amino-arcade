@@ -258,6 +258,22 @@
       "passed_gate": true,
       "best_mean_plddt": 86.72,
       "bytes": 1474189
+    },
+    {
+      "target": "FIY-SMILE",
+      "name": "SMILE",
+      "url": "demo-cache/FIY-SMILE.json",
+      "sequence_sha256": "a3108aa7bd36426e7188e523f155838f510adacc1420799e69bb6154b31bffd9",
+      "pdb": null,
+      "pdb_chain": null,
+      "msa_mode": "single_sequence",
+      "expectation": "lesson",
+      "prediction_scope": "Fold It Yourself demo sequence: SMILE, a five-residue peptide-like amino-acid string.",
+      "omitted_context": "This bundled offline result uses the educational simulator so GitHub Pages can demonstrate FIY without a backend; it is not a real AlphaFold-family prediction.",
+      "cache_key": null,
+      "passed_gate": false,
+      "best_mean_plddt": 63.21,
+      "bytes": 7281
     }
   ]
 }
