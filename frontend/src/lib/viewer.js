@@ -1,7 +1,16 @@
 // Shared viewer/style helpers used by App and MolPlayfield.
 // Extracted from App.jsx during the component split (no behavior change).
 
+// LRU cache for parsed style objects — eliminates repeated string parsing
+// in render(). The cache holds up to 600 entries; styles are immutable so
+// returning the same object is safe and lets React skip style diffing.
+const _stCache = new Map();
+const _ST_MAX = 600;
+
 function st(str) {
+  const cached = _stCache.get(str);
+  if (cached !== undefined) return cached;
+
   const out = {};
   String(str)
     .split(";")
@@ -14,6 +23,9 @@ function st(str) {
       if (!k.startsWith("--")) k = k.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
       out[k] = v;
     });
+
+  if (_stCache.size >= _ST_MAX) _stCache.clear();
+  _stCache.set(str, out);
   return out;
 }
 

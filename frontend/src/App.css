@@ -328,3 +328,21 @@ button:focus-visible, textarea:focus-visible, select:focus-visible { outline: 2p
 .molstar-dark-host button[title*="Augmented Reality"],
 .molstar-dark-host [title*="VR"],
 .molstar-dark-host [title*="XR"] { display: none !important; }
+
+/* ── Presentation mode: reduce GPU/compositing work for screen share ── */
+.arcade-shell.presentation-mode .molstar-dark-host canvas {
+  image-rendering: optimizeSpeed;
+}
+.arcade-shell.presentation-mode .lens-panel {
+  contain: content;
+}
+.arcade-shell.presentation-mode .marquee {
+  contain: layout style;
+}
+.arcade-shell.presentation-mode .readout-panel {
+  contain: content;
+}
+.arcade-shell.presentation-mode .playfield {
+  will-change: transform;
+  isolation: isolate;
+}

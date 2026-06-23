@@ -45,8 +45,33 @@ class MolPlayfield extends Component {
     }
     if (lensesChanged || selChanged || prev.lens !== this.props.lens || prev.lensModel !== this.props.lensModel) this.applyLensAnnotations();
     if (prev.lensModel !== this.props.lensModel || lensesChanged || selChanged || prev.lens !== this.props.lens || prev.colorMode !== this.props.colorMode) { this.applyColorTheme(); this.applyResidueOverlay(); }
-    if (lensesChanged || prev.defaultSpin !== this.props.defaultSpin) this.applySpin();
+    if (lensesChanged || prev.defaultSpin !== this.props.defaultSpin || prev.presentationMode !== this.props.presentationMode) this.applySpin();
     if (prev.lensModel !== this.props.lensModel || lensesChanged || selChanged) this.applyContactLines();
+    // Toggle Mol* quality when presentation mode changes at runtime
+    if (prev.presentationMode !== this.props.presentationMode && this.plugin) {
+      this.applyPresentationQuality(this.props.presentationMode);
+    }
+  }
+
+  async applyPresentationQuality(enabled) {
+    if (!this.plugin) return;
+    try {
+      const { PluginCommands } = await import("molstar/lib/mol-plugin/commands");
+      await PluginCommands.Canvas3D.SetSettings(this.plugin, { settings: (props) => {
+        if (enabled) {
+          if (props.postprocessing) {
+            props.postprocessing.antialiasing = { name: "off", params: {} };
+            props.postprocessing.occlusion = { name: "off", params: {} };
+          }
+          if (props.trackball) { props.trackball.animate = { name: "off", params: {} }; }
+        } else {
+          if (props.postprocessing) {
+            props.postprocessing.antialiasing = { name: "smaa", params: {} };
+          }
+          this.applySpin();
+        }
+      } });
+    } catch (e) { void e; }
   }
   componentWillUnmount() { this._mounted = false; this._loadSeq += 1; try { if (this._clickSub?.unsubscribe) this._clickSub.unsubscribe(); } catch (e) { void e; } this._clickSub = null; try { if (this.plugin && this.plugin.dispose) this.plugin.dispose(); } catch (e) { void e; } this.plugin = null; this._contactLineRefs = []; }
   mirrorPdb(text) {
@@ -428,6 +453,19 @@ class MolPlayfield extends Component {
           },
         }), 12000, "Mol* plugin UI");
         this.installResidueClickHandler();
+      }
+      // Presentation mode: reduce WebGL quality to lower GPU load during screen share
+      if (this.props.presentationMode && this.plugin) {
+        try {
+          const { PluginCommands } = await import("molstar/lib/mol-plugin/commands");
+          await PluginCommands.Canvas3D.SetSettings(this.plugin, { settings: (props) => {
+            if (props.postprocessing) {
+              props.postprocessing.antialiasing = { name: "off", params: {} };
+              props.postprocessing.occlusion = { name: "off", params: {} };
+            }
+            if (props.trackball) { props.trackball.animate = { name: "off", params: {} }; }
+          } });
+        } catch (e) { void e; }
       }
       if (!isCurrent()) return;
       await this.plugin.clear();
