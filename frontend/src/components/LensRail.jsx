@@ -4,7 +4,7 @@ import { st } from "../lib/viewer";
 export default function LensRail({ colors, lensIds, defs, overlays, lensState, lensMetric, chips, onToggle, onExpand, notice, noticeColor, scope }) {
   const C = colors;
   return {
-    rail: h("aside", { style: st("grid-row:1 / span 2;border-right:1px solid #2c2350;display:flex;flex-direction:column;min-height:0;background:linear-gradient(180deg,#150f30,#0e0a22);") },
+    rail: h("aside", { className: "lens-rail", style: st("grid-row:1 / span 2;border-right:1px solid #2c2350;display:flex;flex-direction:column;min-height:0;background:linear-gradient(180deg,#150f30,#0e0a22);") },
       h("div", { style: st("flex:none;padding:12px 13px 7px;") },
         h("div", { style: st("font-family:'JetBrains Mono',monospace;font-weight:700;letter-spacing:1.8px;font-size:10.5px;color:#9d8fd6;") }, "LIVE LENSES"),
         h("div", { style: st("font-size:10px;color:#6f6298;margin-top:4px;line-height:1.35;") }, "Toggle concepts on the structure. ⤢ opens the scene.")),

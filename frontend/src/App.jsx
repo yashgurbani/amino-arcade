@@ -1123,22 +1123,22 @@ class App extends Component {
       st2.libraryOpen ? this.renderLibrary() : null,
       h(ProteinBasics, { open: st2.basicsOpen, onClose: () => this.setState({ basicsOpen: false }), colors: C, onOpenLibrary: () => this.setState({ libraryOpen: true }) }),
 
-      st2.view === "stage" ? h("div", { style: st("flex:1;display:flex;flex-direction:column;min-height:0;") },
-        h("div", { style: st("flex:none;display:flex;align-items:center;gap:14px;padding:8px 18px;background:#100c24;border-bottom:1px solid #2c2350;min-height:50px;") },
+      st2.view === "stage" ? h("div", { className: "stage-view", style: st("flex:1;display:flex;flex-direction:column;min-height:0;") },
+        h("div", { className: "stage-target-strip", style: st("flex:none;display:flex;align-items:center;gap:14px;padding:8px 18px;background:#100c24;border-bottom:1px solid #2c2350;min-height:50px;") },
           h("div", { style: st("display:flex;align-items:center;gap:12px;flex:none;") },
             h("div", { style: st(`width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;font-weight:800;font-size:15px;background:${curConceptColor}1a;border:1px solid ${curConceptColor};color:${curConceptColor};`) }, curT.n),
             h("div", { style: st("line-height:1.2;") },
               h("div", { style: st("font-family:'JetBrains Mono',monospace;font-weight:700;font-size:14px;color:#f3f0ff;white-space:nowrap;") }, curT.name))),
-          h("div", { style: st("flex:1;font-size:11.5px;color:#cabbf0;line-height:1.35;min-width:0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;") }, curT.blurb),
+          h("div", { className: "stage-target-blurb", style: st("flex:1;font-size:11.5px;color:#cabbf0;line-height:1.35;min-width:0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;") }, curT.blurb),
           h("div", { style: st(`flex:none;display:flex;align-items:center;gap:7px;padding:6px 10px;border-radius:8px;background:${curConceptColor}1a;border:1px solid ${curConceptColor};`) },
             h("span", { style: st("font-family:'JetBrains Mono',monospace;font-size:8.5px;letter-spacing:1.5px;color:#9d8fd6;") }, "LENS"),
             h("span", { style: st(`font-family:'JetBrains Mono',monospace;font-weight:700;font-size:10.5px;color:${curConceptColor};white-space:nowrap;`) }, curT.tag))),
 
-        h("main", { style: st(`flex:1;display:grid;grid-template-columns:236px minmax(420px,1fr) 326px;grid-template-rows:minmax(0,1fr) ${st2.loading || st2.error ? "156px" : "84px"};min-height:0;min-width:0;`) },
+        h("main", { className: "stage-grid", style: st(`flex:1;display:grid;grid-template-columns:236px minmax(420px,1fr) 326px;grid-template-rows:minmax(0,1fr) ${st2.loading || st2.error ? "156px" : "84px"};min-height:0;min-width:0;`) },
 
           lensRail.rail,
 
-          h("section", { style: st(st2.molFull ? "position:fixed;inset:0;z-index:60;display:flex;align-items:center;justify-content:center;overflow:hidden;background:radial-gradient(circle at 50% 42%,#101a30,#070b16);" : "grid-column:2;grid-row:1;position:relative;display:flex;align-items:center;justify-content:center;min-height:0;min-width:0;overflow:hidden;background:radial-gradient(circle at 50% 42%,#101a30,#070b16);") },
+          h("section", { className: "stage-playfield", style: st(st2.molFull ? "position:fixed;inset:0;z-index:60;display:flex;align-items:center;justify-content:center;overflow:hidden;background:radial-gradient(circle at 50% 42%,#101a30,#070b16);" : "grid-column:2;grid-row:1;position:relative;display:flex;align-items:center;justify-content:center;min-height:0;min-width:0;overflow:hidden;background:radial-gradient(circle at 50% 42%,#101a30,#070b16);") },
             lensRail.chips,
             h("button", { onClick: () => this.setState((s2) => ({ molFull: !s2.molFull }), () => { try { window.dispatchEvent(new Event("resize")); } catch (e) { void e; } }), title: st2.molFull ? "Exit fullscreen" : "Fullscreen the structure viewport", style: st("position:absolute;top:14px;right:14px;z-index:8;width:32px;height:32px;border-radius:8px;background:rgba(10,14,26,.86);border:1px solid #25304a;color:#cabbf0;cursor:pointer;display:flex;align-items:center;justify-content:center;") },
               h("svg", { width: 15, height: 15, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round", strokeLinejoin: "round" },
@@ -1153,7 +1153,7 @@ class App extends Component {
               h("div", { style: st("display:flex;align-items:center;gap:10px;") }, legend.items.map((L, i) => h("div", { key: i, style: st("display:flex;align-items:center;gap:5px;") }, h("span", { style: st(`width:${L.w};height:8px;border-radius:2px;background:${L.color};`) }), h("span", { style: st("font-family:'JetBrains Mono',monospace;font-size:9px;color:#c4ccde;") }, L.label))))),
             null),
 
-          h("aside", { style: st("grid-row:1;border-left:1px solid #2c2350;display:flex;flex-direction:column;min-height:0;background:linear-gradient(180deg,#150f30,#0e0a22);overflow-y:auto;") },
+          h("aside", { className: "stage-readout", style: st("grid-row:1;border-left:1px solid #2c2350;display:flex;flex-direction:column;min-height:0;background:linear-gradient(180deg,#150f30,#0e0a22);overflow-y:auto;") },
             h("div", { style: st("flex:none;padding:16px;border-bottom:1px solid #2c2350;") },
               h("div", { style: st("font-family:'JetBrains Mono',monospace;font-weight:700;letter-spacing:2px;font-size:11px;color:#9d8fd6;margin-bottom:11px;") }, "LIVE READOUT"),
               h("div", { style: st("display:grid;grid-template-columns:1fr 1fr;gap:9px;") },
@@ -1183,7 +1183,7 @@ class App extends Component {
             h("div", { style: st("flex:1;padding:14px 16px;min-height:120px;") },
               h("div", { style: st("font-family:'JetBrains Mono',monospace;font-size:9.5px;letter-spacing:1px;color:#7a6aa8;margin-bottom:9px;") }, hasReal ? "pLDDT + Δ RMSD OVER RECYCLES" : "SCORE OVER TRAJECTORY"), this.renderTraj())),
 
-          h("footer", { style: st("grid-column:2 / 4;grid-row:2;min-width:0;border-top:1px solid #2c2350;background:linear-gradient(180deg,#150f30,#0e0a22);") },
+          h("footer", { className: "stage-footer", style: st("grid-column:2 / 4;grid-row:2;min-width:0;border-top:1px solid #2c2350;background:linear-gradient(180deg,#150f30,#0e0a22);") },
             st2.loading || st2.error ? this.renderJobPopup() : h("div", { style: st("height:100%;display:flex;align-items:center;gap:14px;padding:0 24px;") },
               hasReal ? h("button", { onClick: () => this.stepBack(), style: st(flip) }, "◀") : null,
               h("button", { onClick: () => this.runFold(curT.seq, false), disabled: st2.loading, style: st(`flex:none;height:46px;padding:0 24px;border-radius:11px;background:${st2.loading ? C.bg3 : "linear-gradient(135deg,#3dffa8,#2fd6ff)"};border:none;color:${st2.loading ? C.mid : "#08060f"};font-family:'JetBrains Mono',monospace;font-weight:800;font-size:13px;letter-spacing:1px;cursor:${st2.loading ? "default" : "pointer"};box-shadow:${st2.loading ? "none" : "0 0 18px rgba(61,255,168,.4)"};`) }, hasReal ? "Re-fold" : "Fold"),
@@ -1199,8 +1199,8 @@ class App extends Component {
                 h("div", { style: st("display:flex;gap:5px;") }, ticks.map((tk, i) => h("button", { key: i, onClick: tk.onClick, title: tk.label, style: st(`flex:1;height:8px;border-radius:4px;cursor:pointer;border:none;background:${tk.active ? "linear-gradient(90deg,#3dffa8,#2fd6ff)" : C.bg2};`) }))))))))
         : null,
 
-      st2.view === "custom" ? h("main", { style: st("flex:1;display:grid;grid-template-columns:336px 1fr 300px;min-height:0;") },
-        h("aside", { style: st("border-right:1px solid #2c2350;display:flex;flex-direction:column;min-height:0;background:linear-gradient(180deg,#150f30,#0e0a22);") },
+      st2.view === "custom" ? h("main", { className: "custom-grid", style: st("flex:1;display:grid;grid-template-columns:336px 1fr 300px;min-height:0;") },
+        h("aside", { className: "custom-input-panel", style: st("border-right:1px solid #2c2350;display:flex;flex-direction:column;min-height:0;background:linear-gradient(180deg,#150f30,#0e0a22);") },
           h("div", { style: st("flex:none;padding:18px 18px 12px;") },
             h("div", { style: st("font-family:'JetBrains Mono',monospace;font-weight:700;letter-spacing:2px;font-size:11px;color:#9d8fd6;") }, "FIY sequence"),
             h("div", { style: st("font-size:11.5px;color:#6f6298;margin-top:6px;line-height:1.5;") }, "Fold It Yourself: paste a one-letter amino-acid sequence and run the engine. Saved recycle PDBs load into the same Mol* playfield.")),
@@ -1226,13 +1226,13 @@ class App extends Component {
             h("span", { style: st(`width:8px;height:8px;border-radius:50%;flex:none;background:${cf.running ? C.cyan : cf.done ? C.green : C.mid};box-shadow:0 0 8px ${cf.running ? C.cyan : cf.done ? C.green : C.mid};`) }),
             h("span", { style: st(`font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.5px;color:${cf.running ? C.cyan : cf.done ? C.green : C.mid};`) }, cf.running ? `${st2.engine.toUpperCase()} · RUNNING` : cf.done ? `${st2.engine.toUpperCase()} · DONE` : `${st2.engine.toUpperCase()} · READY`))),
 
-        h("section", { style: st("position:relative;display:flex;align-items:center;justify-content:center;min-height:0;min-width:0;overflow:hidden;background:radial-gradient(circle at 30% 25%,rgba(47,214,255,.10),transparent 45%),radial-gradient(circle at 75% 70%,rgba(255,79,216,.10),transparent 45%),radial-gradient(circle at 50% 50%,#181030,#0a0718);") },
+        h("section", { className: "custom-playfield", style: st("position:relative;display:flex;align-items:center;justify-content:center;min-height:0;min-width:0;overflow:hidden;background:radial-gradient(circle at 30% 25%,rgba(47,214,255,.10),transparent 45%),radial-gradient(circle at 75% 70%,rgba(255,79,216,.10),transparent 45%),radial-gradient(circle at 50% 50%,#181030,#0a0718);") },
           h("div", { style: st(`position:absolute;top:16px;left:16px;z-index:6;font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:1px;color:${cf.done ? C.green : cf.running ? C.cyan : C.mid};`) }, stageLabel),
           hasReal ? h("button", { onClick: () => this.toggleRealPlayback(), title: "Loop real saved recycle PDB snapshots; this is inference refinement, not physical folding time.", style: st(`position:absolute;top:14px;right:14px;z-index:7;padding:8px 11px;border-radius:8px;background:${st2.realPlaying ? "linear-gradient(135deg,#b06bff,#2fd6ff)" : "rgba(10,14,26,.86)"};border:1px solid ${st2.realPlaying ? C.cyan : "#25304a"};color:${st2.realPlaying ? "#08060f" : "#9d8fd6"};font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:800;letter-spacing:.8px;cursor:pointer;`) }, st2.realPlaying ? "Pause" : "Loop") : null,
           h(MolPlayfield, { pdb: realA && realA.pdb, referenceCa: this.referenceCa(), frameCa: realA && realA.ca, frame: realA, fallbackSequence: cf.seq, lens: "recycling", activeLenses: ["recycling"], lensModel: realLensModel, frames: hasReal ? realFrames : null, frameIndex: st2.realIndex, selectedPae: this.activeSelection(), selectedResidues: selectionResidueNumbers(this.activeSelection()), onResidueClick: (resno) => this.selectResidue(resno), onClearSelection: () => this.setState({ selectedPae: null, previewPae: null }), reflected: st2.reflected, colorMode: st2.colorMode, emptyLabel: "Paste a sequence, then run inference to replace this preview with real recycle PDB frames.", presentationMode: st2.presentationMode }),
           h("div", { style: st("position:absolute;bottom:14px;left:50%;transform:translateX(-50%);z-index:6;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1px;color:#6f6298;text-align:center;") }, hasReal ? `REAL RECYCLE SNAPSHOTS ${st2.realIndex + 1}/${realFrames.length} · ${truthLabels.superposeNote}` : "DRAG TO ROTATE")),
 
-        h("aside", { style: st("border-left:1px solid #2c2350;display:flex;flex-direction:column;min-height:0;background:linear-gradient(180deg,#150f30,#0e0a22);overflow-y:auto;") },
+        h("aside", { className: "custom-readout", style: st("border-left:1px solid #2c2350;display:flex;flex-direction:column;min-height:0;background:linear-gradient(180deg,#150f30,#0e0a22);overflow-y:auto;") },
           h("div", { style: st("flex:none;padding:16px;border-bottom:1px solid #2c2350;") },
             h("div", { style: st("font-family:'JetBrains Mono',monospace;font-weight:700;letter-spacing:2px;font-size:11px;color:#9d8fd6;margin-bottom:11px;") }, "LIVE READOUT"),
             h("div", { style: st("display:grid;grid-template-columns:1fr 1fr;gap:9px;") },
