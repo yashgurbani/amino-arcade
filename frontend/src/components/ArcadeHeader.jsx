@@ -14,7 +14,6 @@ export default function ArcadeHeader({
   onSelectTarget,
   onOpenTour,
   onOpenInfo,
-  onTogglePresentationMode,
 }) {
   return h("header", { className: "arcade-header", style: st("flex:none;height:48px;display:flex;align-items:center;gap:12px;padding:0 14px;background:linear-gradient(180deg,#1c1640,#140e2c);border-bottom:1px solid #322757;z-index:30;min-width:0;") },
     h("div", { style: st("display:flex;align-items:center;gap:9px;padding:6px 12px;border-radius:8px;background:#0a0612;border:1px solid #4a3d72;background-image:radial-gradient(circle,rgba(255,170,60,.12) 1px,transparent 1px);background-size:4px 4px;") },
@@ -32,11 +31,6 @@ export default function ArcadeHeader({
       }, target.n))(target.concept === "all" ? C.amber : defs[target.concept].color)))) : null,
     h("div", { style: st("flex:1;") }),
     h("button", { onClick: onOpenTour, title: "Guided tour and protein basics", style: st("display:flex;align-items:center;gap:7px;padding:6px 10px;border-radius:8px;background:#0a0612;border:1px solid #3dffa8;cursor:pointer;white-space:nowrap;") }, h("span", { style: st("font-family:'JetBrains Mono',monospace;font-size:8.5px;letter-spacing:1.2px;color:#3dffa8;") }, "▶ TOUR")),
-    h("button", {
-      onClick: onTogglePresentationMode,
-      title: "Toggle presentation mode for smoother screen sharing (P)",
-      style: st(`display:flex;align-items:center;gap:7px;padding:6px 10px;border-radius:8px;background:${state.presentationMode ? "linear-gradient(135deg,#2fd6ff,#3dffa8)" : "#0a0612"};border:1px solid ${state.presentationMode ? "#3dffa8" : "#4a3d72"};cursor:pointer;white-space:nowrap;color:${state.presentationMode ? "#08060f" : C.mid};font-family:${mono};font-weight:800;font-size:8.8px;letter-spacing:1.1px;`),
-    }, state.presentationMode ? "PRES ON" : "PRES"),
     h("div", { title: guardrailTitle, style: st("display:flex;align-items:center;gap:6px;padding:6px 9px;border-radius:8px;background:#0a0612;border:1px solid #2c2350;font-family:'JetBrains Mono',monospace;font-size:8.8px;color:#9d8fd6;white-space:nowrap;") },
       h("span", { style: st(`width:7px;height:7px;border-radius:50%;background:${state.loading ? C.cyan : C.green};box-shadow:0 0 8px ${state.loading ? C.cyan : C.green};`) }),
       h("span", null, `${state.engine} · ${guardrailLabel}`)),

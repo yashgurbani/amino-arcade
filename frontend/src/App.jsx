@@ -65,7 +65,7 @@ class App extends Component {
     custom: { seq: "NLYIQWLKDGGPSSGRPPPS", t: 0, running: false, done: false, logs: [], elapsed: 0 },
     target: 0, frame: 5, rot: 0.6, rotX: -0.18, spin: true, hoverRes: null, colorMode: "ss", selectedPae: null,
     overlays: { coevolution: false, triangle: false, ipa: false, fape: false, recycling: false },
-    reflected: false, mapMode: "contact", presentationMode: false,
+    reflected: false, mapMode: "contact",
     expanded: null, showScore: false, showInfo: false,
     coev: { view: "cov", guess: null }, tri: this.initTri(), ipa: { thetaG: 0, naive: false }, fape: { reflected: false, naive: false }, rec: this.initRec(),
     // backend
@@ -97,52 +97,14 @@ class App extends Component {
 
   handleKeyDown = (event) => {
     if (event.key === "Escape" && this.state.selectedPae) this.setState({ selectedPae: null, previewPae: null });
-    if ((event.key === "p" || event.key === "P") && !event.ctrlKey && !event.metaKey && !event.altKey) {
-      const tag = (event.target || {}).tagName;
-      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
-      event.preventDefault();
-      this.togglePresentationMode();
-    }
   };
 
   startSpinTimer() {
     if (this._spin) return;
     this._spin = setInterval(() => {
-      if (this.state.view === "stage" && this.state.spin && !this._drag && !this.hasReal() && !this.state.presentationMode)
+      if (this.state.view === "stage" && this.state.spin && !this._drag && !this.hasReal())
         this.setState((s) => ({ rot: s.rot + 0.04 }));
     }, 100);
-  }
-
-  togglePresentationMode = () => {
-    this.setPresentationMode(!this.state.presentationMode);
-  };
-
-  setPresentationMode(enabled) {
-    if (enabled) {
-      this._spinBeforePresentation = this.state.spin;
-      clearInterval(this._spin); this._spin = null;
-      clearInterval(this._triT); this._triT = null;
-      clearInterval(this._recT); this._recT = null;
-      clearInterval(this._playT); this._playT = null;
-    } else {
-      this.startSpinTimer();
-    }
-    this.setState((s) => ({
-      presentationMode: enabled,
-      spin: enabled ? false : Boolean(this._spinBeforePresentation ?? s.spin),
-      realPlaying: enabled ? false : s.realPlaying,
-      tri: enabled ? { ...s.tri, playing: false } : s.tri,
-      rec: enabled ? { ...s.rec, playing: false } : s.rec,
-    }));
-  }
-
-  shouldComponentUpdate(_nextProps, nextState) {
-    if (this.state.presentationMode) {
-      const keys = Object.keys(nextState);
-      const changed = keys.filter((k) => nextState[k] !== this.state[k]);
-      if (changed.length === 1 && changed[0] === "rot") return false;
-    }
-    return true;
   }
 
   // ---------- real backend ----------
@@ -1099,9 +1061,7 @@ class App extends Component {
       : "Active backend and local guardrail";
 
 
-    return h("div", { style: st("position:fixed;inset:0;display:flex;flex-direction:column;font-family:'Roboto',sans-serif;background:radial-gradient(circle at 50% -10%,#1a1438,#0b0820 55%,#070510);color:#f3f0ff;overflow:hidden;"), className: `arcade-shell${st2.presentationMode ? " presentation-mode" : ""}` },
-
-      st2.presentationMode ? h("div", { style: st("position:fixed;top:8px;right:8px;z-index:9999;padding:4px 10px;border-radius:6px;background:#1f6feb;color:#fff;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1px;pointer-events:none;opacity:.85;") }, "PRES MODE \u00b7 P to exit") : null,
+    return h("div", { style: st("position:fixed;inset:0;display:flex;flex-direction:column;font-family:'Roboto',sans-serif;background:radial-gradient(circle at 50% -10%,#1a1438,#0b0820 55%,#070510);color:#f3f0ff;overflow:hidden;"), className: "arcade-shell" },
 
       h(ArcadeHeader, {
         colors: C,
@@ -1116,7 +1076,6 @@ class App extends Component {
         onSelectTarget: (index) => this.selectTarget(index),
         onOpenTour: () => this.setState({ tourOpen: true }),
         onOpenInfo: () => this.setState({ showInfo: true }),
-        onTogglePresentationMode: this.togglePresentationMode,
       }),
 
       h(TourOverlay, { open: st2.tourOpen, onClose: () => this.setState({ tourOpen: false }), conceptDefs: defs, glossary, equationDeck, colors: C, onFocusLens: this.focusLens, onOpenBasics: () => this.setState({ tourOpen: false, basicsOpen: true }) }),
@@ -1145,7 +1104,7 @@ class App extends Component {
                 st2.molFull
                   ? [h("path", { key: 1, d: "M8 3v3a2 2 0 0 1-2 2H3" }), h("path", { key: 2, d: "M21 8h-3a2 2 0 0 1-2-2V3" }), h("path", { key: 3, d: "M3 16h3a2 2 0 0 1 2 2v3" }), h("path", { key: 4, d: "M16 21v-3a2 2 0 0 1 2-2h3" })]
                   : [h("path", { key: 1, d: "M8 3H5a2 2 0 0 0-2 2v3" }), h("path", { key: 2, d: "M16 3h3a2 2 0 0 1 2 2v3" }), h("path", { key: 3, d: "M21 16v3a2 2 0 0 1-2 2h-3" }), h("path", { key: 4, d: "M3 16v3a2 2 0 0 0 2 2h3" })])),
-            h(MolPlayfield, { pdb: realA && realA.pdb, referenceCa: this.referenceCa(), frameCa: realA && realA.ca, pdbId: !realA ? curT.pdb : undefined, pdbChain: curT.pdbChain, includePreviewHetatm: curT.includePreviewHetatm, defaultSpin: curT.defaultSpin, fallbackSequence: curT.seq, frame: realA, lens: curT.concept, activeLenses: activeLensIds, lensModel: realLensModel, frames: hasReal ? realFrames : null, frameIndex: st2.realIndex, selectedPae: this.activeSelection(), selectedResidues: selectionResidueNumbers(this.activeSelection()), onResidueClick: (resno) => this.selectResidue(resno), onClearSelection: () => this.setState({ selectedPae: null, previewPae: null }), reflected: st2.reflected, colorMode: st2.colorMode, fullscreen: st2.molFull, presentationMode: st2.presentationMode }),
+            h(MolPlayfield, { pdb: realA && realA.pdb, referenceCa: this.referenceCa(), frameCa: realA && realA.ca, pdbId: !realA ? curT.pdb : undefined, pdbChain: curT.pdbChain, includePreviewHetatm: curT.includePreviewHetatm, defaultSpin: curT.defaultSpin, fallbackSequence: curT.seq, frame: realA, lens: curT.concept, activeLenses: activeLensIds, lensModel: realLensModel, frames: hasReal ? realFrames : null, frameIndex: st2.realIndex, selectedPae: this.activeSelection(), selectedResidues: selectionResidueNumbers(this.activeSelection()), onResidueClick: (resno) => this.selectResidue(resno), onClearSelection: () => this.setState({ selectedPae: null, previewPae: null }), reflected: st2.reflected, colorMode: st2.colorMode, fullscreen: st2.molFull }),
             h("div", { style: st("position:absolute;bottom:14px;left:14px;z-index:6;padding:8px 11px;border-radius:8px;background:rgba(10,14,26,.82);border:1px solid #25304a;") },
               h("div", { style: st("display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:6px;") },
                 h("div", { style: st("font-family:'JetBrains Mono',monospace;font-size:8px;letter-spacing:1.5px;color:#7a85a0;") }, legend.title),
@@ -1229,7 +1188,7 @@ class App extends Component {
         h("section", { className: "custom-playfield", style: st("position:relative;display:flex;align-items:center;justify-content:center;min-height:0;min-width:0;overflow:hidden;background:radial-gradient(circle at 30% 25%,rgba(47,214,255,.10),transparent 45%),radial-gradient(circle at 75% 70%,rgba(255,79,216,.10),transparent 45%),radial-gradient(circle at 50% 50%,#181030,#0a0718);") },
           h("div", { style: st(`position:absolute;top:16px;left:16px;z-index:6;font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:1px;color:${cf.done ? C.green : cf.running ? C.cyan : C.mid};`) }, stageLabel),
           hasReal ? h("button", { onClick: () => this.toggleRealPlayback(), title: "Loop real saved recycle PDB snapshots; this is inference refinement, not physical folding time.", style: st(`position:absolute;top:14px;right:14px;z-index:7;padding:8px 11px;border-radius:8px;background:${st2.realPlaying ? "linear-gradient(135deg,#b06bff,#2fd6ff)" : "rgba(10,14,26,.86)"};border:1px solid ${st2.realPlaying ? C.cyan : "#25304a"};color:${st2.realPlaying ? "#08060f" : "#9d8fd6"};font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:800;letter-spacing:.8px;cursor:pointer;`) }, st2.realPlaying ? "Pause" : "Loop") : null,
-          h(MolPlayfield, { pdb: realA && realA.pdb, referenceCa: this.referenceCa(), frameCa: realA && realA.ca, frame: realA, fallbackSequence: cf.seq, lens: "recycling", activeLenses: ["recycling"], lensModel: realLensModel, frames: hasReal ? realFrames : null, frameIndex: st2.realIndex, selectedPae: this.activeSelection(), selectedResidues: selectionResidueNumbers(this.activeSelection()), onResidueClick: (resno) => this.selectResidue(resno), onClearSelection: () => this.setState({ selectedPae: null, previewPae: null }), reflected: st2.reflected, colorMode: st2.colorMode, emptyLabel: "Paste a sequence, then run inference to replace this preview with real recycle PDB frames.", presentationMode: st2.presentationMode }),
+          h(MolPlayfield, { pdb: realA && realA.pdb, referenceCa: this.referenceCa(), frameCa: realA && realA.ca, frame: realA, fallbackSequence: cf.seq, lens: "recycling", activeLenses: ["recycling"], lensModel: realLensModel, frames: hasReal ? realFrames : null, frameIndex: st2.realIndex, selectedPae: this.activeSelection(), selectedResidues: selectionResidueNumbers(this.activeSelection()), onResidueClick: (resno) => this.selectResidue(resno), onClearSelection: () => this.setState({ selectedPae: null, previewPae: null }), reflected: st2.reflected, colorMode: st2.colorMode, emptyLabel: "Paste a sequence, then run inference to replace this preview with real recycle PDB frames." }),
           h("div", { style: st("position:absolute;bottom:14px;left:50%;transform:translateX(-50%);z-index:6;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1px;color:#6f6298;text-align:center;") }, hasReal ? `REAL RECYCLE SNAPSHOTS ${st2.realIndex + 1}/${realFrames.length} · ${truthLabels.superposeNote}` : "DRAG TO ROTATE")),
 
         h("aside", { className: "custom-readout", style: st("border-left:1px solid #2c2350;display:flex;flex-direction:column;min-height:0;background:linear-gradient(180deg,#150f30,#0e0a22);overflow-y:auto;") },
